@@ -2,7 +2,6 @@ package com.clinova.service;
 
 import com.clinova.dto.AutenticacionRequestDTO;
 import com.clinova.dto.AutenticacionResponseDTO;
-import com.clinova.entity.Persona;
 import com.clinova.entity.Role;
 import com.clinova.entity.Usuario;
 import com.clinova.repository.UsuarioRepository;
@@ -25,16 +24,10 @@ public class AutenticacionService {
     @Transactional
     public AutenticacionResponseDTO registrar(AutenticacionRequestDTO request) {
 
-        var persona = Persona.builder()
-                .nombre("Pendiente")
-                .apellido("Pendiente")
-                .build();
-
         var usuario = Usuario.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .rol(Role.USER)
-                .persona(persona)
                 .build();
 
         usuarioRepository.save(usuario);

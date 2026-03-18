@@ -33,7 +33,7 @@ public class Usuario implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role rol;
 
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinColumn(name = "persona_id", referencedColumnName = "id", nullable = true)
     private Persona persona;
 
