@@ -94,6 +94,17 @@ public class SoporteService {
         return mapearAResponseDTO(actualizado);
     }
 
+    // NUEVO MÉTODO: Para actualizar solo el nombre (tipoDocumento) desde la galería
+    @Transactional
+    public SoporteResponseDTO actualizarTipoDocumento(Long id, String nuevoTipo) {
+        Soporte soporte = soporteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Soporte no encontrado"));
+
+        soporte.setTipoDocumento(nuevoTipo);
+        Soporte actualizado = soporteRepository.save(soporte);
+        return mapearAResponseDTO(actualizado);
+    }
+
     private SoporteResponseDTO mapearAResponseDTO(Soporte soporte) {
         return new SoporteResponseDTO(
                 soporte.getId(),
