@@ -9,5 +9,6 @@ public record SoporteResponseDTO(
         String rutaArchivo,
         Long tamano,
         LocalDateTime fechaCarga,
+        String estado,
         Long hojaVidaId
 ) {}

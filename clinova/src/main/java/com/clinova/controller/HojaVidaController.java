@@ -53,4 +53,10 @@ public class HojaVidaController {
         List<HojaVidaResponseDTO> response = hojaVidaService.obtenerTodasLasHojasDeVida();
         return new StructureResponses<>("SUCCESS", "Hojas de vida obtenidas exitosamente", response);
     }
+
+    @GetMapping("/cedula/{cedula}")
+    public StructureResponses<HojaVidaResponseDTO> obtenerHojaVidaPorCedula(@PathVariable String cedula) {
+        HojaVidaResponseDTO response = hojaVidaService.obtenerHojaVidaPorCedula(cedula);
+        return new StructureResponses<>("SUCCESS", "Hoja de vida encontrada", response);
+    }
 }

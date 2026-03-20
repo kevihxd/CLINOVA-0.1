@@ -70,6 +70,7 @@ public class SoporteInteligenteService {
                             .rutaArchivo(rutaDestino.toString())
                             .tamano((long) bytesPagina.length)
                             .fechaCarga(LocalDateTime.now())
+                            .estado("Pendiente")
                             .hojaVida(hojaVida)
                             .build();
 
@@ -93,6 +94,7 @@ public class SoporteInteligenteService {
                 soporte.getRutaArchivo(),
                 soporte.getTamano(),
                 soporte.getFechaCarga(),
+                soporte.getEstado(),
                 soporte.getHojaVida().getId()
         );
     }

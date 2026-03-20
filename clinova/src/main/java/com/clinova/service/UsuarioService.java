@@ -24,10 +24,10 @@ public class UsuarioService {
                 .orElseThrow(() -> new RuntimeException("Tipo de documento no encontrado"));
 
         Persona persona = Persona.builder()
-                .nombres(request.nombres())
-                .apellidos(request.apellidos())
-                .numeroDocumento(request.numeroDocumento())
-                .tipoDocumento(tipoDoc)
+                .primer_nombre(request.nombres())
+                .primer_apellido(request.apellidos())
+                .numero_documento(request.numeroDocumento())
+                .tipo_documento(tipoDoc.getCodigo())
                 .build();
 
         Usuario usuario = Usuario.builder()
@@ -51,9 +51,9 @@ public class UsuarioService {
         return new UsuarioResponseDTO(
                 usuario.getId(),
                 usuario.getUsername(),
-                usuario.getPersona().getNombres(),
-                usuario.getPersona().getApellidos(),
-                usuario.getPersona().getNumeroDocumento()
+                usuario.getPersona() != null ? usuario.getPersona().getPrimer_nombre() : "",
+                usuario.getPersona() != null ? usuario.getPersona().getPrimer_apellido() : "",
+                usuario.getPersona() != null ? usuario.getPersona().getNumero_documento() : ""
         );
     }
 }

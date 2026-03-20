@@ -16,16 +16,15 @@ public class Persona {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
-    private String nombres;
-
-    @Column(nullable = false, length = 100)
-    private String apellidos;
-
-    @Column(nullable = false, unique = true, length = 20)
-    private String numeroDocumento;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tipo_documento_id", nullable = false)
-    private TipoDocumento tipoDocumento;
+    private String tipo_documento;
+    private String numero_documento;
+    private String primer_nombre;
+    private String segundo_nombre;
+    private String primer_apellido;
+    private String segundo_apellido;
+    private String fecha_nacimiento;
+    private String direccion_residencia;
+    private String numero_telefono;
+    private String lugar_nacimiento;
+    private String correo_electronico;
 }

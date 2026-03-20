@@ -41,4 +41,12 @@ public class SoporteController {
         soporteService.eliminarSoporte(id);
         return new StructureResponses<>("SUCCESS", "Soporte eliminado exitosamente", null);
     }
+
+    @PutMapping("/{id}/estado")
+    public StructureResponses<SoporteResponseDTO> actualizarEstado(
+            @PathVariable Long id,
+            @RequestParam String estado) {
+        SoporteResponseDTO response = soporteService.actualizarEstado(id, estado);
+        return new StructureResponses<>("SUCCESS", "Estado actualizado exitosamente", response);
+    }
 }

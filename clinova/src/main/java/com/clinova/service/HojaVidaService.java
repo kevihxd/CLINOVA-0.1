@@ -182,6 +182,13 @@ public class HojaVidaService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public HojaVidaResponseDTO obtenerHojaVidaPorCedula(String cedula) {
+        HojaVida hojaVida = hojaVidaRepository.findByCedula(cedula)
+                .orElseThrow(() -> new RuntimeException("Hoja de vida no encontrada"));
+        return mapearAResponseDTO(hojaVida);
+    }
+
     private HojaVidaResponseDTO mapearAResponseDTO(HojaVida hojaVida) {
         Long usuarioId = hojaVida.getUsuario() != null ? hojaVida.getUsuario().getId() : null;
 

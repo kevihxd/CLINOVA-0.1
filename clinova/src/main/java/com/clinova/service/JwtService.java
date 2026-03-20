@@ -20,7 +20,14 @@ public class JwtService {
     private static final String SECRET_KEY = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
 
     public String generarToken(UserDetails userDetails) {
-        return generarToken(new HashMap<>(), userDetails);
+        Map<String, Object> extraClaims = new HashMap<>();
+
+        // 🔥 AQUÍ ESTÁ LA MAGIA: Extraemos el rol del usuario y lo guardamos en el token
+        if (userDetails.getAuthorities() != null && !userDetails.getAuthorities().isEmpty()) {
+            extraClaims.put("rol", userDetails.getAuthorities().iterator().next().getAuthority());
+        }
+
+        return generarToken(extraClaims, userDetails);
     }
 
     public String generarToken(Map<String, Object> extraClaims, UserDetails userDetails) {

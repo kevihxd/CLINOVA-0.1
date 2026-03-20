@@ -55,6 +55,7 @@ public class SoporteService {
                 .rutaArchivo(rutaDestino.toString())
                 .tamano(archivo.getSize())
                 .fechaCarga(LocalDateTime.now())
+                .estado("Pendiente")
                 .hojaVida(hojaVida)
                 .build();
 
@@ -83,6 +84,16 @@ public class SoporteService {
         soporteRepository.delete(soporte);
     }
 
+    @Transactional
+    public SoporteResponseDTO actualizarEstado(Long id, String nuevoEstado) {
+        Soporte soporte = soporteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Soporte no encontrado"));
+
+        soporte.setEstado(nuevoEstado);
+        Soporte actualizado = soporteRepository.save(soporte);
+        return mapearAResponseDTO(actualizado);
+    }
+
     private SoporteResponseDTO mapearAResponseDTO(Soporte soporte) {
         return new SoporteResponseDTO(
                 soporte.getId(),
@@ -91,6 +102,7 @@ public class SoporteService {
                 soporte.getRutaArchivo(),
                 soporte.getTamano(),
                 soporte.getFechaCarga(),
+                soporte.getEstado(),
                 soporte.getHojaVida().getId()
         );
     }

@@ -32,6 +32,9 @@ public class Soporte {
     @Column(nullable = false)
     private LocalDateTime fechaCarga;
 
+    @Column(length = 50)
+    private String estado;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hoja_vida_id", nullable = false)
     private HojaVida hojaVida;

@@ -24,10 +24,22 @@ public class AutenticacionService {
     @Transactional
     public AutenticacionResponseDTO registrar(AutenticacionRequestDTO request) {
 
+        // 1. Verificamos qué rol nos mandaron. Si no mandan nada, será USER por defecto.
+        Role rolAsignado = Role.USER;
+        if (request.getRol() != null && !request.getRol().isEmpty()) {
+            try {
+                rolAsignado = Role.valueOf(request.getRol().toUpperCase());
+            } catch (Exception e) {
+                rolAsignado = Role.USER;
+            }
+        }
+
+        // 2. Creamos el usuario leyendo todos los datos
         var usuario = Usuario.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .rol(Role.USER)
+                .rol(rolAsignado) // 🔥 Ahora sí usa el rol que mandes ("ADMIN")
+                .persona(request.getPersona()) // 🔥 Y guardamos la persona de una vez
                 .build();
 
         usuarioRepository.save(usuario);
