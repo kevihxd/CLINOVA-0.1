@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -57,13 +58,14 @@ public class HojaVidaService {
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         }
 
+        // CORRECCIÓN: Usar new ArrayList<>() en lugar de List.of()
         List<Cargo> cargos = (request.cargosIds() != null && !request.cargosIds().isEmpty())
                 ? cargoRepository.findAllById(request.cargosIds())
-                : List.of();
+                : new ArrayList<>();
 
         List<Sede> sedes = (request.sedesIds() != null && !request.sedesIds().isEmpty())
                 ? sedeRepository.findAllById(request.sedesIds())
-                : List.of();
+                : new ArrayList<>();
 
         HojaVida hojaVida = HojaVida.builder()
                 .nombres(request.nombres())
@@ -106,13 +108,14 @@ public class HojaVidaService {
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         }
 
+        // CORRECCIÓN: Usar new ArrayList<>() en lugar de List.of()
         List<Cargo> cargos = (request.cargosIds() != null && !request.cargosIds().isEmpty())
                 ? cargoRepository.findAllById(request.cargosIds())
-                : List.of();
+                : new ArrayList<>();
 
         List<Sede> sedes = (request.sedesIds() != null && !request.sedesIds().isEmpty())
                 ? sedeRepository.findAllById(request.sedesIds())
-                : List.of();
+                : new ArrayList<>();
 
         hojaVida.setNombres(request.nombres());
         hojaVida.setApellidos(request.apellidos());
@@ -135,6 +138,8 @@ public class HojaVidaService {
         hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
         hojaVida.setUsuarioUltimaEdicion(request.usuarioUltimaEdicion());
         hojaVida.setUsuario(usuario);
+
+        // Al pasarle un ArrayList, Hibernate ya puede modificar estas colecciones sin crashear
         hojaVida.setCargos(cargos);
         hojaVida.setSedes(sedes);
 
@@ -194,11 +199,11 @@ public class HojaVidaService {
 
         List<CargoDTO> cargosDTO = hojaVida.getCargos() != null ? hojaVida.getCargos().stream()
                 .map(c -> new CargoDTO(c.getId(), c.getNombre()))
-                .collect(Collectors.toList()) : List.of();
+                .collect(Collectors.toList()) : new ArrayList<>();
 
         List<SedeDTO> sedesDTO = hojaVida.getSedes() != null ? hojaVida.getSedes().stream()
                 .map(s -> new SedeDTO(s.getId(), s.getNombre()))
-                .collect(Collectors.toList()) : List.of();
+                .collect(Collectors.toList()) : new ArrayList<>();
 
         return new HojaVidaResponseDTO(
                 hojaVida.getId(),

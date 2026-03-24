@@ -39,7 +39,8 @@ public class SecurityConfig {
                                 "/login.html",
                                 "/js/**",
                                 "/css/**",
-                                "/error"
+                                "/error",
+                                "/uploads/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

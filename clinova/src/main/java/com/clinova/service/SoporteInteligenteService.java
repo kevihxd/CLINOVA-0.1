@@ -56,27 +56,31 @@ public class SoporteInteligenteService {
 
                 String tipoDocumentoClasificado = clasificadorIA.clasificarDocumento(bytesPagina);
 
-                if (tipoDocumentoClasificado != null && !tipoDocumentoClasificado.equalsIgnoreCase("Desconocido")) {
-                    String nombreArchivoUnico = UUID.randomUUID().toString() + ".pdf";
-                    String subCarpeta = tipoDocumentoClasificado.replaceAll("[^a-zA-Z0-9]+", "_").toLowerCase();
-                    Path rutaDestino = Paths.get(RUTA_BASE_SOPORTES + subCarpeta + "/" + nombreArchivoUnico);
-
-                    Files.createDirectories(rutaDestino.getParent());
-                    Files.write(rutaDestino, bytesPagina);
-
-                    Soporte soporte = Soporte.builder()
-                            .tipoDocumento(tipoDocumentoClasificado)
-                            .nombreArchivo(tipoDocumentoClasificado + ".pdf")
-                            .rutaArchivo(rutaDestino.toString())
-                            .tamano((long) bytesPagina.length)
-                            .fechaCarga(LocalDateTime.now())
-                            .estado("Pendiente")
-                            .hojaVida(hojaVida)
-                            .build();
-
-                    Soporte soporteGuardado = soporteRepository.save(soporte);
-                    soportesProcesados.add(mapearAResponseDTO(soporteGuardado));
+                // Fallback: Si la IA falla o devuelve algo vacío, se fuerza a "Otros Soportes" para evitar pérdida de datos
+                if (tipoDocumentoClasificado == null || tipoDocumentoClasificado.trim().isEmpty() || tipoDocumentoClasificado.equalsIgnoreCase("Desconocido")) {
+                    tipoDocumentoClasificado = "Otros Soportes";
                 }
+
+                String nombreArchivoUnico = UUID.randomUUID().toString() + ".pdf";
+                String subCarpeta = tipoDocumentoClasificado.replaceAll("[^a-zA-Z0-9]+", "_").toLowerCase();
+                Path rutaDestino = Paths.get(RUTA_BASE_SOPORTES + subCarpeta + "/" + nombreArchivoUnico);
+
+                Files.createDirectories(rutaDestino.getParent());
+                Files.write(rutaDestino, bytesPagina);
+
+                Soporte soporte = Soporte.builder()
+                        .tipoDocumento(tipoDocumentoClasificado)
+                        .nombreArchivo(tipoDocumentoClasificado + ".pdf")
+                        .rutaArchivo(rutaDestino.toString())
+                        .tamano((long) bytesPagina.length)
+                        .fechaCarga(LocalDateTime.now())
+                        .estado("Pendiente")
+                        .hojaVida(hojaVida)
+                        .build();
+
+                Soporte soporteGuardado = soporteRepository.save(soporte);
+                soportesProcesados.add(mapearAResponseDTO(soporteGuardado));
+
                 pagina.close();
             }
         } catch (IOException e) {

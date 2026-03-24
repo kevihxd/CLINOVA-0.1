@@ -19,8 +19,8 @@ public class ClasificadorDocumentoIA {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    @Value("${gemini.api.url}")
-    private String apiUrl;
+    // Se fuerza el modelo 1.5-flash que es el único con soporte nativo para PDF inline
+    private final String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -34,11 +34,11 @@ public class ClasificadorDocumentoIA {
             ObjectNode content = contents.addObject();
             ArrayNode parts = content.putArray("parts");
 
-            // Instrucción de texto
-            ObjectNode textPart = parts.addObject();
-            textPart.put("text", "Analiza el siguiente documento y clasifícalo SOLO con una de estas opciones exactas, sin puntos ni texto extra: Cédula de ciudadanía, Diploma académico, Acta de grado, Certificado laboral, Certificado de EPS, Certificado de pensión (AFP), Hoja de vida (CV), Tarjeta profesional, Antecedentes, Desconocido.");
+            String categorias = "Acta de grado Profesional, Acta grado de Bachiller, Acta grado Título Especialista, Afiliación ARL, Afiliación EPS, Afiliación Pensión, Antecedentes, Caja de compensación, Carnet vacunación, Cédula de ciudadanía, Certificación Bancaria, Certificado de curso básico de reanimación cardiopulmonar, Certificado de Formación, Certificado Experiencia Laboral, Cesantías, Contrato, Convalidación, Diploma Bachiller, Exámenes Medico Ocupacional, Formato de requisitos para hoja de vida y contratación, Fundación, Incapacidades, Libreta Militar, Paz y salvo, PESV, Póliza de responsabilidad Civil, Preaviso, Procesos disciplinarios, Resolución expedida por Instituto departamental de salud, RUT, Soportes contables, Tarjeta profesional, Título de profesional, Título Especialista, Vacaciones, Varios y/o anexos, Verificación en Rethus, Otros Soportes";
 
-            // Documento adjunto
+            ObjectNode textPart = parts.addObject();
+            textPart.put("text", "Eres un auditor experto de Recursos Humanos. Analiza este documento y clasifícalo SOLO con UNA de estas opciones exactas (sin puntos finales ni comillas): " + categorias + ". Si el documento no coincide con ninguna o no estás seguro, responde exactamente 'Otros Soportes'.");
+
             ObjectNode inlineDataPart = parts.addObject();
             ObjectNode inlineData = inlineDataPart.putObject("inline_data");
             inlineData.put("mime_type", "application/pdf");
@@ -63,12 +63,12 @@ public class ClasificadorDocumentoIA {
                 return clasificacion.replace("\n", "").replace("\r", "");
             } else {
                 System.err.println("Error de Gemini API: " + response.body());
-                return "Desconocido";
+                return "Otros Soportes";
             }
 
         } catch (Exception e) {
             System.err.println("Error procesando documento con IA: " + e.getMessage());
-            return "Desconocido";
+            return "Otros Soportes";
         }
     }
 }
