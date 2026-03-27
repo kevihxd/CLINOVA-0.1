@@ -2,7 +2,6 @@ package com.clinova.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
@@ -20,7 +19,6 @@ public record HojaVidaRequestDTO(
         @Size(min = 5, max = 20, message = "La cédula debe tener entre 5 y 20 caracteres")
         String cedula,
 
-        @NotNull(message = "La fecha de nacimiento es obligatoria")
         LocalDate fechaNacimiento,
 
         String direccionResidencia,
@@ -31,7 +29,6 @@ public record HojaVidaRequestDTO(
         String eps,
         String afp,
 
-        @NotNull(message = "La fecha de ingreso es obligatoria")
         LocalDate fechaIngreso,
 
         String estado,

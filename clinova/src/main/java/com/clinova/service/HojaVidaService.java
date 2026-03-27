@@ -58,7 +58,6 @@ public class HojaVidaService {
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         }
 
-        // CORRECCIÓN: Usar new ArrayList<>() en lugar de List.of()
         List<Cargo> cargos = (request.cargosIds() != null && !request.cargosIds().isEmpty())
                 ? cargoRepository.findAllById(request.cargosIds())
                 : new ArrayList<>();
@@ -108,7 +107,6 @@ public class HojaVidaService {
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         }
 
-        // CORRECCIÓN: Usar new ArrayList<>() en lugar de List.of()
         List<Cargo> cargos = (request.cargosIds() != null && !request.cargosIds().isEmpty())
                 ? cargoRepository.findAllById(request.cargosIds())
                 : new ArrayList<>();
@@ -138,8 +136,6 @@ public class HojaVidaService {
         hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
         hojaVida.setUsuarioUltimaEdicion(request.usuarioUltimaEdicion());
         hojaVida.setUsuario(usuario);
-
-        // Al pasarle un ArrayList, Hibernate ya puede modificar estas colecciones sin crashear
         hojaVida.setCargos(cargos);
         hojaVida.setSedes(sedes);
 
