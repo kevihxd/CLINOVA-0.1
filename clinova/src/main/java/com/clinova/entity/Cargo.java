@@ -1,7 +1,10 @@
 package com.clinova.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "cargos")
@@ -18,4 +21,17 @@ public class Cargo {
 
     @Column(nullable = false, length = 100, unique = true)
     private String nombre;
+
+    @ManyToOne
+    @JoinColumn(name = "reporta_a_id")
+    @JsonIgnoreProperties("reportaA")
+    private Cargo reportaA;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "cargo_permisos",
+            joinColumns = @JoinColumn(name = "cargo_id"),
+            inverseJoinColumns = @JoinColumn(name = "permiso_id")
+    )
+    private Set<Permiso> permisos = new HashSet<>();
 }

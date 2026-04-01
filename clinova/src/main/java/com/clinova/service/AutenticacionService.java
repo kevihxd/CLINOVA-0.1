@@ -8,9 +8,13 @@ import com.clinova.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +28,6 @@ public class AutenticacionService {
     @Transactional
     public AutenticacionResponseDTO registrar(AutenticacionRequestDTO request) {
 
-        // 1. Verificamos qué rol nos mandaron. Si no mandan nada, será USER por defecto.
         Role rolAsignado = Role.USER;
         if (request.getRol() != null && !request.getRol().isEmpty()) {
             try {
@@ -34,21 +37,17 @@ public class AutenticacionService {
             }
         }
 
-        // 2. Creamos el usuario leyendo todos los datos
         var usuario = Usuario.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .rol(rolAsignado) // 🔥 Ahora sí usa el rol que mandes ("ADMIN")
-                .persona(request.getPersona()) // 🔥 Y guardamos la persona de una vez
+                .rol(rolAsignado)
+                .persona(request.getPersona())
                 .build();
 
         usuarioRepository.save(usuario);
-
         var jwtToken = jwtService.generarToken(usuario);
 
-        return AutenticacionResponseDTO.builder()
-                .token(jwtToken)
-                .build();
+        return construirRespuesta(usuario, jwtToken, "Usuario registrado exitosamente");
     }
 
     public AutenticacionResponseDTO autenticar(AutenticacionRequestDTO request) {
@@ -64,8 +63,23 @@ public class AutenticacionService {
 
         var jwtToken = jwtService.generarToken(usuario);
 
+        return construirRespuesta(usuario, jwtToken, "Autenticación exitosa");
+    }
+
+    // Método auxiliar para armar la respuesta con los nuevos campos
+    private AutenticacionResponseDTO construirRespuesta(Usuario usuario, String token, String mensaje) {
+        List<String> permisos = usuario.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
+        String cargoNombre = (usuario.getCargo() != null) ? usuario.getCargo().getNombre() : "Sin Cargo Asignado";
+
         return AutenticacionResponseDTO.builder()
-                .token(jwtToken)
+                .token(token)
+                .mensaje(mensaje)
+                .username(usuario.getUsername())
+                .cargo(cargoNombre)
+                .permisos(permisos)
                 .build();
     }
 }

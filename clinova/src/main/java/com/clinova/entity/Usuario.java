@@ -9,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -37,9 +38,28 @@ public class Usuario implements UserDetails {
     @JoinColumn(name = "persona_id", referencedColumnName = "id", nullable = true)
     private Persona persona;
 
+    // --- NUEVO: Relación con el Cargo ---
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "cargo_id", nullable = true)
+    private Cargo cargo;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + rol.name()));
+        List<GrantedAuthority> authorities = new ArrayList<>();
+
+        // Mantenemos el rol original por compatibilidad
+        if (rol != null) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + rol.name()));
+        }
+
+        // Cargamos los permisos atómicos directamente desde el Cargo del usuario
+        if (cargo != null && cargo.getPermisos() != null) {
+            for (Permiso permiso : cargo.getPermisos()) {
+                authorities.add(new SimpleGrantedAuthority(permiso.getNombre()));
+            }
+        }
+
+        return authorities;
     }
 
     @Override
