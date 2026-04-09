@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,27 @@ public class PlantillaService {
 
         Plantilla guardada = plantillaRepository.save(plantilla);
         return mapearADTO(guardada);
+    }
+
+    @Transactional
+    public PlantillaDTO actualizarPlantilla(Long id, PlantillaDTO request) {
+        Plantilla plantilla = plantillaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Plantilla no encontrada"));
+
+        plantilla.setTitulo(request.titulo());
+        plantilla.setDescripcion(request.descripcion());
+        plantilla.setContenidoHtml(request.contenidoHtml());
+
+        Plantilla actualizada = plantillaRepository.save(plantilla);
+        return mapearADTO(actualizada);
+    }
+
+    @Transactional
+    public void eliminarPlantilla(Long id) {
+        if (!plantillaRepository.existsById(id)) {
+            throw new RuntimeException("Plantilla no encontrada");
+        }
+        plantillaRepository.deleteById(id);
     }
 
     @Transactional(readOnly = true)

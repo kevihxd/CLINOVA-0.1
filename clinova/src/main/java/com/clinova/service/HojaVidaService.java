@@ -78,10 +78,14 @@ public class HojaVidaService {
                 .arl(request.arl())
                 .eps(request.eps())
                 .afp(request.afp())
+                .cajaCompensacion(request.cajaCompensacion())
+                .salario(request.salario())
+                .subsidioTransporte(request.subsidioTransporte())
                 .fechaIngreso(request.fechaIngreso())
                 .estado(request.estado())
                 .tipoContrato(request.tipoContrato())
                 .fechaRetiro(request.fechaRetiro())
+                .motivoRetiro(request.motivoRetiro())
                 .correoElectronico(request.correoElectronico())
                 .pesv(request.pesv())
                 .responsableEvaluacionId(request.responsableEvaluacionId())
@@ -126,10 +130,14 @@ public class HojaVidaService {
         hojaVida.setArl(request.arl());
         hojaVida.setEps(request.eps());
         hojaVida.setAfp(request.afp());
+        hojaVida.setCajaCompensacion(request.cajaCompensacion());
+        hojaVida.setSalario(request.salario());
+        hojaVida.setSubsidioTransporte(request.subsidioTransporte());
         hojaVida.setFechaIngreso(request.fechaIngreso());
         hojaVida.setEstado(request.estado());
         hojaVida.setTipoContrato(request.tipoContrato());
         hojaVida.setFechaRetiro(request.fechaRetiro());
+        hojaVida.setMotivoRetiro(request.motivoRetiro());
         hojaVida.setCorreoElectronico(request.correoElectronico());
         hojaVida.setPesv(request.pesv());
         hojaVida.setResponsableEvaluacionId(request.responsableEvaluacionId());
@@ -214,11 +222,15 @@ public class HojaVidaService {
                 hojaVida.getArl(),
                 hojaVida.getEps(),
                 hojaVida.getAfp(),
+                hojaVida.getCajaCompensacion(),
+                hojaVida.getSalario(),
+                hojaVida.getSubsidioTransporte(),
                 hojaVida.getFotoUrl(),
                 hojaVida.getFechaIngreso(),
                 hojaVida.getEstado(),
                 hojaVida.getTipoContrato(),
                 hojaVida.getFechaRetiro(),
+                hojaVida.getMotivoRetiro(),
                 hojaVida.getCorreoElectronico(),
                 hojaVida.getPesv(),
                 usuarioId,

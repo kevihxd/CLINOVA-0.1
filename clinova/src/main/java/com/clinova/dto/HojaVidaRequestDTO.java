@@ -28,12 +28,16 @@ public record HojaVidaRequestDTO(
         String arl,
         String eps,
         String afp,
+        String cajaCompensacion,
+        Double salario,
+        String subsidioTransporte,
 
         LocalDate fechaIngreso,
 
         String estado,
         String tipoContrato,
         LocalDate fechaRetiro,
+        String motivoRetiro,
 
         @Email(message = "Debe ser un correo electrónico válido")
         String correoElectronico,

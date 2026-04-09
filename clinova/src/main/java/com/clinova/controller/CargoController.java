@@ -4,7 +4,7 @@ import com.clinova.entity.Cargo;
 import com.clinova.entity.Permiso;
 import com.clinova.repository.CargoRepository;
 import com.clinova.repository.PermisoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,14 +14,12 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/cargos")
+@RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class CargoController {
 
-    @Autowired
-    private CargoRepository cargoRepository;
-
-    @Autowired
-    private PermisoRepository permisoRepository;
+    private final CargoRepository cargoRepository;
+    private final PermisoRepository permisoRepository;
 
     @GetMapping
     public ResponseEntity<List<Cargo>> listarCargos() {
@@ -38,9 +36,7 @@ public class CargoController {
 
             Cargo nuevoCargo = new Cargo();
             nuevoCargo.setNombre(nombre.trim());
-            Cargo guardado = cargoRepository.save(nuevoCargo);
-
-            return ResponseEntity.ok(guardado);
+            return ResponseEntity.ok(cargoRepository.save(nuevoCargo));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error al crear cargo: " + e.getMessage());
         }
@@ -48,19 +44,14 @@ public class CargoController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarCargo(@PathVariable Long id, @RequestBody Map<String, String> payload) {
-        try {
-            return cargoRepository.findById(id).map(cargo -> {
-                String nuevoNombre = payload.get("nombre");
-                if (nuevoNombre == null || nuevoNombre.trim().isEmpty()) {
-                    return ResponseEntity.badRequest().body("El nombre del cargo es obligatorio");
-                }
-                cargo.setNombre(nuevoNombre.trim());
-                Cargo guardado = cargoRepository.save(cargo);
-                return ResponseEntity.ok(guardado);
-            }).orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error al actualizar cargo: " + e.getMessage());
-        }
+        return cargoRepository.findById(id).map(cargo -> {
+            String nuevoNombre = payload.get("nombre");
+            if (nuevoNombre == null || nuevoNombre.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("El nombre del cargo es obligatorio");
+            }
+            cargo.setNombre(nuevoNombre.trim());
+            return ResponseEntity.ok(cargoRepository.save(cargo));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/permisos")

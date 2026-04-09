@@ -52,6 +52,14 @@ public class HojaVida {
     @Column(length = 100)
     private String afp;
 
+    @Column(length = 100)
+    private String cajaCompensacion;
+
+    private Double salario;
+
+    @Column(length = 20)
+    private String subsidioTransporte;
+
     @Column(length = 500)
     private String fotoUrl;
 
@@ -65,6 +73,9 @@ public class HojaVida {
     private String tipoContrato;
 
     private LocalDate fechaRetiro;
+
+    @Column(length = 250)
+    private String motivoRetiro;
 
     @Column(length = 150)
     private String correoElectronico;

@@ -15,16 +15,17 @@ public class Persona {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private String tipoDocumento;
+    private String numeroDocumento;
+    private String primerNombre;
+    private String segundoNombre;
+    private String primerApellido;
+    private String segundoApellido;
+    private String fechaNacimiento;
+    private String direccionResidencia;
+    private String numeroTelefono;
+    private String lugarNacimiento;
 
-    private String tipo_documento;
-    private String numero_documento;
-    private String primer_nombre;
-    private String segundo_nombre;
-    private String primer_apellido;
-    private String segundo_apellido;
-    private String fecha_nacimiento;
-    private String direccion_residencia;
-    private String numero_telefono;
-    private String lugar_nacimiento;
-    private String correo_electronico;
+    @Column(name = "correo_electronico")
+    private String correoElectronico;
 }

@@ -1,26 +1,22 @@
 package com.clinova.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public record UsuarioRequestDTO(
-        @NotBlank(message = "El username es obligatorio")
-        String username,
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UsuarioRequestDTO {
 
-        @NotBlank(message = "El password es obligatorio")
-        @Size(min = 8, message = "El password debe tener al menos 8 caracteres")
-        String password,
+        private String username;
+        private String password;
+        private String rol;
+        private Long cargoId;
+        private String nombres;
+        private String apellidos;
+        private String correo;
 
-        @NotBlank(message = "Los nombres son obligatorios")
-        String nombres,
-
-        @NotBlank(message = "Los apellidos son obligatorios")
-        String apellidos,
-
-        @NotBlank(message = "El número de documento es obligatorio")
-        String numeroDocumento,
-
-        @NotNull(message = "El ID del tipo de documento es obligatorio")
-        Long tipoDocumentoId
-) {}
+}

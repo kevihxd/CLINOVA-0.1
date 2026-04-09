@@ -1,5 +1,6 @@
 package com.clinova.service;
 
+import com.clinova.dto.RechazoSoporteRequestDTO;
 import com.clinova.dto.SoporteRequestDTO;
 import com.clinova.dto.SoporteResponseDTO;
 import com.clinova.entity.HojaVida;
@@ -27,6 +28,7 @@ public class SoporteService {
 
     private final SoporteRepository soporteRepository;
     private final HojaVidaRepository hojaVidaRepository;
+    private final EmailService emailService;
     private final String RUTA_DIRECTORIO = "uploads/soportes/";
 
     @Transactional
@@ -55,7 +57,7 @@ public class SoporteService {
                 .rutaArchivo(rutaDestino.toString())
                 .tamano(archivo.getSize())
                 .fechaCarga(LocalDateTime.now())
-                .estado("Pendiente")
+                .estado("Aprobado")
                 .hojaVida(hojaVida)
                 .build();
 
@@ -85,23 +87,33 @@ public class SoporteService {
     }
 
     @Transactional
-    public SoporteResponseDTO actualizarEstado(Long id, String nuevoEstado) {
-        Soporte soporte = soporteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Soporte no encontrado"));
-
-        soporte.setEstado(nuevoEstado);
-        Soporte actualizado = soporteRepository.save(soporte);
-        return mapearAResponseDTO(actualizado);
-    }
-
-    // NUEVO MÉTODO: Para actualizar solo el nombre (tipoDocumento) desde la galería
-    @Transactional
     public SoporteResponseDTO actualizarTipoDocumento(Long id, String nuevoTipo) {
         Soporte soporte = soporteRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Soporte no encontrado"));
 
         soporte.setTipoDocumento(nuevoTipo);
         Soporte actualizado = soporteRepository.save(soporte);
+        return mapearAResponseDTO(actualizado);
+    }
+
+    @Transactional
+    public SoporteResponseDTO rechazarSoporte(Long id, RechazoSoporteRequestDTO request) {
+        Soporte soporte = soporteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Soporte no encontrado"));
+
+        soporte.setEstado("Rechazado");
+        Soporte actualizado = soporteRepository.save(soporte);
+
+        String correoEmpleado = soporte.getHojaVida().getCorreoElectronico();
+        if (correoEmpleado != null && !correoEmpleado.trim().isEmpty()) {
+            emailService.enviarNotificacionRechazo(
+                    correoEmpleado,
+                    soporte.getTipoDocumento(),
+                    request.getMotivo(),
+                    request.getFechaLimite()
+            );
+        }
+
         return mapearAResponseDTO(actualizado);
     }
 
