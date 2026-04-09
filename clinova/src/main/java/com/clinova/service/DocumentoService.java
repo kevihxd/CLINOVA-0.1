@@ -2,31 +2,32 @@ package com.clinova.service;
 
 import com.clinova.entity.Documento;
 import com.clinova.repository.DocumentoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class DocumentoService {
 
-    @Autowired
-    private DocumentoRepository documentoRepository;
+    private final DocumentoRepository documentoRepository;
 
-    public List<Documento> listarTodos() {
+    @Transactional(readOnly = true)
+    public List<Documento> obtenerTodos() {
         return documentoRepository.findAll();
     }
 
-    public Documento guardar(Documento documento) {
-        if(documento.getCodigo() == null || documento.getCodigo().isEmpty()){
-            documento.setCodigo("DOC-" + System.currentTimeMillis());
-        }
-        if(documento.getVersion() == null || documento.getVersion().isEmpty()){
-            documento.setVersion("1");
-        }
+    @Transactional
+    public Documento crear(Documento documento) {
         return documentoRepository.save(documento);
     }
 
+    @Transactional
     public void eliminar(Long id) {
-        documentoRepository.deleteById(id);
+        if (documentoRepository.existsById(id)) {
+            documentoRepository.deleteById(id);
+        }
     }
 }

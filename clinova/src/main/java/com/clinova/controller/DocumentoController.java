@@ -1,32 +1,44 @@
 package com.clinova.controller;
 
+import com.clinova.dto.StructureResponses;
 import com.clinova.entity.Documento;
 import com.clinova.service.DocumentoService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/documentos")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/v1/documentos")
+@RequiredArgsConstructor
 public class DocumentoController {
-    @Autowired
-    private DocumentoService documentoService;
+
+    private final DocumentoService documentoService;
 
     @GetMapping
-    public List<Documento> listar() {
-        return documentoService.listarTodos();
+    public ResponseEntity<StructureResponses<List<Documento>>> obtenerTodos() {
+        List<Documento> documentos = documentoService.obtenerTodos();
+        return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documentos obtenidos", documentos));
     }
 
     @PostMapping
-    public ResponseEntity<Documento> crear(@RequestBody Documento documento) {
-        return ResponseEntity.ok(documentoService.guardar(documento));
+    public ResponseEntity<StructureResponses<Documento>> crear(@RequestBody Documento documento) {
+        try {
+            Documento guardado = documentoService.crear(documento);
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento creado exitosamente", guardado));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        documentoService.eliminar(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<StructureResponses<Void>> eliminar(@PathVariable Long id) {
+        try {
+            documentoService.eliminar(id);
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento eliminado", null));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
     }
 }
