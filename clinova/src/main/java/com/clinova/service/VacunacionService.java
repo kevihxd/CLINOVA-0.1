@@ -1,5 +1,7 @@
 package com.clinova.service;
 
+import com.clinova.dto.PersonaStatusDTO;
+import com.clinova.dto.RegistroVacunaDTO;
 import com.clinova.entity.Persona;
 import com.clinova.entity.RegistroVacuna;
 import com.clinova.entity.Vacuna;
@@ -7,78 +9,112 @@ import com.clinova.repository.PersonaRepository;
 import com.clinova.repository.RegistroVacunaRepository;
 import com.clinova.repository.VacunaRepository;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class VacunacionService {
 
     private final PersonaRepository personaRepository;
-    private final VacunaRepository vacunaRepository;
     private final RegistroVacunaRepository registroVacunaRepository;
+    private final VacunaRepository vacunaRepository;
+
+    public List<Vacuna> listarCatalogoVacunas() {
+        return vacunaRepository.findAll();
+    }
 
     @Transactional
-    public void procesarExcelVacunas(MultipartFile file) {
-        try (InputStream is = file.getInputStream();
-             Workbook workbook = WorkbookFactory.create(is)) {
-            Sheet sheet = workbook.getSheet("RegistroDosis");
-            if (sheet == null) sheet = workbook.getSheetAt(2); // O el índice 2 si está en esa posición
-
-            boolean isFirstRow = true;
-
-            for (Row row : sheet) {
-                if (isFirstRow) {
-                    isFirstRow = false;
-                    continue; // Saltar encabezados
-                }
-
-                String documento = getCellValueAsString(row.getCell(0));
-                String nombreVacuna = getCellValueAsString(row.getCell(1));
-                String detalleDosis = getCellValueAsString(row.getCell(2));
-                LocalDate fechaAplicacion = getCellValueAsDate(row.getCell(3));
-
-                if (documento.isBlank() || nombreVacuna.isBlank() || fechaAplicacion == null) {
-                    continue;
-                }
-
-                Persona persona = personaRepository.findByNumeroDocumento(documento).orElse(null);
-                if (persona == null) continue;
-
-                Vacuna vacuna = vacunaRepository.findByNombre(nombreVacuna)
-                        .orElseGet(() -> vacunaRepository.save(Vacuna.builder().nombre(nombreVacuna).build()));
-
-                RegistroVacuna registro = RegistroVacuna.builder()
-                        .persona(persona)
-                        .vacuna(vacuna)
-                        .detalleDosis(detalleDosis)
-                        .fechaAplicacion(fechaAplicacion)
-                        .build();
-
-                registroVacunaRepository.save(registro);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Error procesando el archivo Excel: " + e.getMessage());
-        }
+    public Vacuna crearVacuna(String nombre) {
+        return vacunaRepository.findByNombre(nombre)
+                .orElseGet(() -> vacunaRepository.save(Vacuna.builder().nombre(nombre).build()));
     }
 
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) return "";
-        if (cell.getCellType() == CellType.NUMERIC) return String.valueOf((long) cell.getNumericCellValue());
-        return cell.getStringCellValue().trim();
+    @Transactional
+    public Vacuna editarVacuna(Long id, String nuevoNombre) {
+        Vacuna vacuna = vacunaRepository.findById(id).orElseThrow(() -> new RuntimeException("Vacuna no encontrada"));
+        vacuna.setNombre(nuevoNombre);
+        return vacunaRepository.save(vacuna);
     }
 
-    private LocalDate getCellValueAsDate(Cell cell) {
-        if (cell == null) return null;
-        if (DateUtil.isCellDateFormatted(cell)) {
-            return cell.getDateCellValue().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    @Transactional
+    public void eliminarVacuna(Long id) {
+        if (registroVacunaRepository.existsByVacunaId(id)) {
+            throw new RuntimeException("No se puede eliminar la vacuna porque ya existen colaboradores con dosis registradas de este biológico.");
         }
-        return LocalDate.parse(cell.getStringCellValue().trim()); //  formato YYYY-MM-DD
+        vacunaRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public PersonaStatusDTO buscarPorDocumento(String documento) {
+        Persona p = personaRepository.findByNumeroDocumento(documento)
+                .orElseThrow(() -> new RuntimeException("Personal no encontrado"));
+
+        List<Vacuna> todasLasVacunas = vacunaRepository.findAll();
+        List<RegistroVacuna> registros = registroVacunaRepository.findByPersonaId(p.getId());
+
+        List<PersonaStatusDTO.RequisitoDetalleDTO> requisitos = todasLasVacunas.stream().map(v -> {
+            RegistroVacuna reg = registros.stream()
+                    .filter(r -> r.getVacuna().getId().equals(v.getId()))
+                    .findFirst().orElse(null);
+
+            boolean vencido = reg != null && reg.getFechaVencimiento() != null && reg.getFechaVencimiento().isBefore(LocalDate.now());
+
+            return PersonaStatusDTO.RequisitoDetalleDTO.builder()
+                    .registroId(reg != null ? reg.getId() : null)
+                    .vacunaId(v.getId())
+                    .nombre(v.getNombre())
+                    .completado(reg != null)
+                    .detalleDosis(reg != null ? reg.getDetalleDosis() : null)
+                    .fechaAplicacion(reg != null ? reg.getFechaAplicacion() : null)
+                    .fechaVencimiento(reg != null ? reg.getFechaVencimiento() : null)
+                    .vencido(vencido)
+                    .build();
+        }).collect(Collectors.toList());
+
+        return PersonaStatusDTO.builder()
+                .personaId(p.getId())
+                .nombreCompleto(p.getPrimerNombre() + " " + p.getPrimerApellido())
+                .numeroDocumento(p.getNumeroDocumento())
+                .perfil(p.getUsuario() != null && p.getUsuario().getCargo() != null ? p.getUsuario().getCargo().getNombre() : "N/A")
+                .requisitos(requisitos)
+                .build();
+    }
+
+    @Transactional
+    public void registrarDosis(RegistroVacunaDTO dto) {
+        Persona p = personaRepository.findById(dto.getPersonaId()).orElseThrow();
+        Vacuna v = vacunaRepository.findByNombre(dto.getNombreVacuna()).orElseThrow();
+
+        RegistroVacuna registro = RegistroVacuna.builder()
+                .persona(p)
+                .vacuna(v)
+                .detalleDosis(dto.getDetalleDosis())
+                .fechaAplicacion(dto.getFechaAplicacion())
+                .fechaVencimiento(dto.getFechaVencimiento())
+                .build();
+
+        registroVacunaRepository.save(registro);
+    }
+
+    @Transactional
+    public void editarDosis(Long id, RegistroVacunaDTO dto) {
+        RegistroVacuna registro = registroVacunaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Registro no encontrado"));
+
+        registro.setDetalleDosis(dto.getDetalleDosis());
+        registro.setFechaAplicacion(dto.getFechaAplicacion());
+        registro.setFechaVencimiento(dto.getFechaVencimiento());
+
+        registroVacunaRepository.save(registro);
+    }
+
+    @Transactional
+    public void eliminarDosis(Long id) {
+        registroVacunaRepository.deleteById(id);
     }
 }

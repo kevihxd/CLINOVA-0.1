@@ -1,5 +1,6 @@
 package com.clinova.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,4 +29,8 @@ public class Persona {
 
     @Column(name = "correo_electronico")
     private String correoElectronico;
+
+    @JsonIgnore
+    @OneToOne(mappedBy = "persona", fetch = FetchType.LAZY)
+    private Usuario usuario;
 }

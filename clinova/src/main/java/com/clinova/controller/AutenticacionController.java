@@ -19,11 +19,11 @@ public class AutenticacionController {
 
     @PostMapping("/registro")
     public ResponseEntity<AutenticacionResponseDTO> registrar(@RequestBody AutenticacionRequestDTO request) {
-        return ResponseEntity.ok(autenticacionService.registrar(request));
+        return ResponseEntity.ok(autenticacionService.registro(request));
     }
 
     @PostMapping("/login")
     public ResponseEntity<AutenticacionResponseDTO> autenticar(@RequestBody AutenticacionRequestDTO request) {
-        return ResponseEntity.ok(autenticacionService.autenticar(request));
+        return ResponseEntity.ok(autenticacionService.login(request));
     }
 }

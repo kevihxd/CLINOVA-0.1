@@ -3,16 +3,20 @@ package com.clinova.service;
 import com.clinova.dto.AutenticacionRequestDTO;
 import com.clinova.dto.AutenticacionResponseDTO;
 import com.clinova.entity.Persona;
+import com.clinova.entity.Role;
 import com.clinova.entity.Usuario;
 import com.clinova.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,20 +45,26 @@ public class AutenticacionService {
         Usuario usuario = Usuario.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .rol(request.getRol())
+                .rol(request.getRol() != null ? Role.valueOf(request.getRol().toUpperCase()) : Role.USER)
                 .persona(persona)
                 .build();
 
         usuarioRepository.save(usuario);
 
-        Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("role", String.valueOf(usuario.getRol()));
+        List<String> permisos = usuario.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
 
-        var jwtToken = jwtService.generateToken(extraClaims, usuario);
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("permisos", permisos);
+        extraClaims.put("role", usuario.getRol() != null ? usuario.getRol().name() : "");
+
         return AutenticacionResponseDTO.builder()
-                .token(jwtToken)
+                .token(jwtService.generarToken(extraClaims, usuario))
+                .mensaje("Registro exitoso")
                 .username(usuario.getUsername())
-                .role(String.valueOf(usuario.getRol()))
+                .cargo("Sin cargo")
+                .permisos(permisos)
                 .build();
     }
 
@@ -66,17 +76,27 @@ public class AutenticacionService {
                 )
         );
 
-        var usuario = usuarioRepository.findByUsername(request.getUsername())
+        Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
                 .orElseThrow();
 
-        Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("role", String.valueOf(usuario.getRol()));
+        List<String> permisos = usuario.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
 
-        var jwtToken = jwtService.generateToken(extraClaims, usuario);
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("permisos", permisos);
+        extraClaims.put("role", usuario.getRol() != null ? usuario.getRol().name() : "");
+
+        if (usuario.getCargo() != null) {
+            extraClaims.put("cargo", usuario.getCargo().getNombre());
+        }
+
         return AutenticacionResponseDTO.builder()
-                .token(jwtToken)
+                .token(jwtService.generarToken(extraClaims, usuario))
+                .mensaje("Autenticación exitosa")
                 .username(usuario.getUsername())
-                .role(String.valueOf(usuario.getRol()))
+                .cargo(usuario.getCargo() != null ? usuario.getCargo().getNombre() : "Sin cargo")
+                .permisos(permisos)
                 .build();
     }
 }

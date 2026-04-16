@@ -23,9 +23,7 @@ public class RegistroVacuna {
     @JoinColumn(name = "vacuna_id", nullable = false)
     private Vacuna vacuna;
 
-    @Column(nullable = false)
     private String detalleDosis;
-
-    @Column(nullable = false)
     private LocalDate fechaAplicacion;
+    private LocalDate fechaVencimiento;
 }
