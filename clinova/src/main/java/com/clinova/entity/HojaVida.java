@@ -1,7 +1,10 @@
 package com.clinova.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,96 +22,75 @@ public class HojaVida {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
-    private String nombres;
-
-    @Column(nullable = false, length = 100)
-    private String apellidos;
-
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(nullable = false, unique = true)
     private String cedula;
 
     @Column(nullable = false)
+    private String nombres;
+
+    @Column(nullable = false)
+    private String apellidos;
+
     private LocalDate fechaNacimiento;
-
-    @Column(length = 200)
     private String direccionResidencia;
-
-    @Column(length = 50)
     private String telefono;
+    private String correoElectronico;
 
-    @Column(length = 100)
     private String contactoEmergencia;
-
-    @Column(length = 50)
     private String telefonoContactoEmergencia;
 
-    @Column(length = 100)
     private String arl;
-
-    @Column(length = 100)
     private String eps;
-
-    @Column(length = 100)
     private String afp;
-
-    @Column(length = 100)
     private String cajaCompensacion;
 
     private Double salario;
-
-    @Column(length = 20)
     private String subsidioTransporte;
-
-    @Column(length = 500)
-    private String fotoUrl;
-
-    @Column(nullable = false)
     private LocalDate fechaIngreso;
-
-    @Column(length = 50)
     private String estado;
-
-    @Column(length = 100)
     private String tipoContrato;
-
     private LocalDate fechaRetiro;
-
-    @Column(length = 250)
     private String motivoRetiro;
 
-    @Column(length = 150)
-    private String correoElectronico;
+    private String perfilVacunacion;
 
-    @Column(length = 50)
     private String pesv;
-
-    @Column(name = "responsable_evaluacion_id")
     private Long responsableEvaluacionId;
-
-    @Column(name = "fecha_ultima_edicion")
     private LocalDateTime fechaUltimaEdicion;
-
-    @Column(name = "usuario_ultima_edicion", length = 150)
     private String usuarioUltimaEdicion;
+    private String fotoUrl;
+
+    @Transient
+    private Long usuarioId;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "usuario_id", unique = true)
+    @JoinColumn(name = "usuario_id")
+    @JsonIgnore
     private Usuario usuario;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "hojas_vida_cargos",
+            name = "hoja_vida_cargo",
             joinColumns = @JoinColumn(name = "hoja_vida_id"),
             inverseJoinColumns = @JoinColumn(name = "cargo_id")
     )
+    @JsonIgnoreProperties({"hojasVida", "hibernateLazyInitializer", "handler"})
     private List<Cargo> cargos;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "hojas_vida_sedes",
+            name = "hoja_vida_sede",
             joinColumns = @JoinColumn(name = "hoja_vida_id"),
             inverseJoinColumns = @JoinColumn(name = "sede_id")
     )
+    @JsonIgnoreProperties({"hojasVida", "hibernateLazyInitializer", "handler"})
     private List<Sede> sedes;
+
+    @OneToMany(mappedBy = "hojaVida", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JsonIgnore
+    private List<Soporte> soportes;
+
+    @OneToMany(mappedBy = "hojaVida", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JsonIgnore
+    private List<CursoAsignado> cursosAsignados;
 }
