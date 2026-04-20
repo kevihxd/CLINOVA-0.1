@@ -15,8 +15,17 @@ public class UsuarioRequestDTO {
         private String password;
         private String rol;
         private Long cargoId;
-        private String nombres;
-        private String apellidos;
-        private String correo;
 
+        private String tipoDocumento;
+        private String numeroDocumento;
+        private String primerNombre;
+        private String segundoNombre;
+        private String primerApellido;
+        private String segundoApellido;
+        private String fechaNacimiento;
+        private String direccionResidencia;
+        private String numeroTelefono;
+        private String lugarNacimiento;
+        private String correoElectronico;
+        private String perfilVacunacion;
 }

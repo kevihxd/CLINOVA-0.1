@@ -47,6 +47,9 @@ public record HojaVidaRequestDTO(
         Long responsableEvaluacionId,
         String usuarioUltimaEdicion,
 
+        String perfilVacunacion,
+        String detalleVacunas,
+
         List<Long> cargosIds,
         List<Long> sedesIds
 ) {}

@@ -32,6 +32,8 @@ public record HojaVidaResponseDTO(
         Long responsableEvaluacionId,
         LocalDateTime fechaUltimaEdicion,
         String usuarioUltimaEdicion,
+        String perfilVacunacion,
+        String detalleVacunas,
         List<CargoDTO> cargos,
         List<SedeDTO> sedes
 ) {}

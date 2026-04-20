@@ -17,35 +17,23 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
 
     @GetMapping
-    public ResponseEntity<List<Usuario>> listarUsuarios() {
+    public ResponseEntity<List<Usuario>> listarTodos() {
         return ResponseEntity.ok(usuarioService.listarTodos());
     }
 
     @PostMapping
-    public ResponseEntity<?> crearUsuario(@RequestBody UsuarioRequestDTO dto) {
-        try {
-            return ResponseEntity.ok(usuarioService.crearUsuario(dto));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<Usuario> crear(@RequestBody UsuarioRequestDTO dto) {
+        return ResponseEntity.ok(usuarioService.crearUsuario(dto));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> actualizarUsuario(@PathVariable Long id, @RequestBody Usuario datosActualizados) {
-        try {
-            return ResponseEntity.ok(usuarioService.actualizarUsuario(id, datosActualizados));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<Usuario> actualizar(@PathVariable Long id, @RequestBody UsuarioRequestDTO dto) {
+        return ResponseEntity.ok(usuarioService.actualizarUsuario(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarUsuario(@PathVariable Long id) {
-        try {
-            usuarioService.eliminarUsuario(id);
-            return ResponseEntity.ok().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        usuarioService.eliminarUsuario(id);
+        return ResponseEntity.noContent().build();
     }
 }

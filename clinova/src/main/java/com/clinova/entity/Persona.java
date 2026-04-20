@@ -16,6 +16,7 @@ public class Persona {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String tipoDocumento;
     private String numeroDocumento;
     private String primerNombre;
@@ -29,6 +30,9 @@ public class Persona {
 
     @Column(name = "correo_electronico")
     private String correoElectronico;
+
+    @Column(name = "perfil_vacunacion", length = 50)
+    private String perfilVacunacion;
 
     @JsonIgnore
     @OneToOne(mappedBy = "persona", fetch = FetchType.LAZY)

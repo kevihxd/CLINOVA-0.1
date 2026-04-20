@@ -41,15 +41,23 @@ public class UsuarioService {
                     .orElseThrow(() -> new RuntimeException("Cargo no encontrado"));
         }
 
-        // Creamos y guardamos la persona primero (asegúrate de que en DTO mapeen a primerNombre, etc.)
         Persona persona = Persona.builder()
-                .primerNombre(dto.getNombres())
-                .primerApellido(dto.getApellidos())
-                .correoElectronico(dto.getCorreo())
+                .tipoDocumento(dto.getTipoDocumento())
+                .numeroDocumento(dto.getNumeroDocumento())
+                .primerNombre(dto.getPrimerNombre())
+                .segundoNombre(dto.getSegundoNombre())
+                .primerApellido(dto.getPrimerApellido())
+                .segundoApellido(dto.getSegundoApellido())
+                .fechaNacimiento(dto.getFechaNacimiento())
+                .direccionResidencia(dto.getDireccionResidencia())
+                .numeroTelefono(dto.getNumeroTelefono())
+                .lugarNacimiento(dto.getLugarNacimiento())
+                .correoElectronico(dto.getCorreoElectronico())
+                .perfilVacunacion(dto.getPerfilVacunacion())
                 .build();
+
         personaRepository.save(persona);
 
-        // Creamos el usuario
         Usuario usuario = Usuario.builder()
                 .username(dto.getUsername())
                 .password(passwordEncoder.encode(dto.getPassword()))
@@ -62,40 +70,45 @@ public class UsuarioService {
     }
 
     @Transactional
-    public Usuario actualizarUsuario(Long id, Usuario datosActualizados) {
+    public Usuario actualizarUsuario(Long id, UsuarioRequestDTO dto) {
         Usuario usuarioExistente = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        usuarioExistente.setUsername(datosActualizados.getUsername());
-        usuarioExistente.setRol(datosActualizados.getRol());
+        usuarioExistente.setUsername(dto.getUsername());
+        usuarioExistente.setRol(Role.valueOf(dto.getRol().toUpperCase()));
 
-        // Encriptar contraseña solo si se envía una nueva
-        if (datosActualizados.getPassword() != null && !datosActualizados.getPassword().isEmpty()) {
-            usuarioExistente.setPassword(passwordEncoder.encode(datosActualizados.getPassword()));
+        if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
+            usuarioExistente.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
 
-        // Actualización limpia de la Persona asociada
-        if (datosActualizados.getPersona() != null) {
-            if (usuarioExistente.getPersona() == null) {
-                usuarioExistente.setPersona(datosActualizados.getPersona());
-            } else {
-                Persona pExistente = usuarioExistente.getPersona();
-                Persona pNueva = datosActualizados.getPersona();
-
-                pExistente.setTipoDocumento(pNueva.getTipoDocumento());
-                pExistente.setNumeroDocumento(pNueva.getNumeroDocumento());
-                pExistente.setPrimerNombre(pNueva.getPrimerNombre());
-                pExistente.setSegundoNombre(pNueva.getSegundoNombre());
-                pExistente.setPrimerApellido(pNueva.getPrimerApellido());
-                pExistente.setSegundoApellido(pNueva.getSegundoApellido());
-                pExistente.setFechaNacimiento(pNueva.getFechaNacimiento());
-                pExistente.setDireccionResidencia(pNueva.getDireccionResidencia());
-                pExistente.setNumeroTelefono(pNueva.getNumeroTelefono());
-                pExistente.setLugarNacimiento(pNueva.getLugarNacimiento());
-                pExistente.setCorreoElectronico(pNueva.getCorreoElectronico());
-            }
+        if (dto.getCargoId() != null) {
+            Cargo cargo = cargoRepository.findById(dto.getCargoId())
+                    .orElseThrow(() -> new RuntimeException("Cargo no encontrado"));
+            usuarioExistente.setCargo(cargo);
+        } else {
+            usuarioExistente.setCargo(null);
         }
 
+        Persona pExistente = usuarioExistente.getPersona();
+        if (pExistente == null) {
+            pExistente = new Persona();
+            usuarioExistente.setPersona(pExistente);
+        }
+
+        pExistente.setTipoDocumento(dto.getTipoDocumento());
+        pExistente.setNumeroDocumento(dto.getNumeroDocumento());
+        pExistente.setPrimerNombre(dto.getPrimerNombre());
+        pExistente.setSegundoNombre(dto.getSegundoNombre());
+        pExistente.setPrimerApellido(dto.getPrimerApellido());
+        pExistente.setSegundoApellido(dto.getSegundoApellido());
+        pExistente.setFechaNacimiento(dto.getFechaNacimiento());
+        pExistente.setDireccionResidencia(dto.getDireccionResidencia());
+        pExistente.setNumeroTelefono(dto.getNumeroTelefono());
+        pExistente.setLugarNacimiento(dto.getLugarNacimiento());
+        pExistente.setCorreoElectronico(dto.getCorreoElectronico());
+        pExistente.setPerfilVacunacion(dto.getPerfilVacunacion());
+
+        personaRepository.save(pExistente);
         return usuarioRepository.save(usuarioExistente);
     }
 

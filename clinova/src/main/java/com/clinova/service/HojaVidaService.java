@@ -91,6 +91,8 @@ public class HojaVidaService {
                 .responsableEvaluacionId(request.responsableEvaluacionId())
                 .fechaUltimaEdicion(LocalDateTime.now())
                 .usuarioUltimaEdicion(request.usuarioUltimaEdicion())
+                .perfilVacunacion(request.perfilVacunacion())
+                .detalleVacunas(request.detalleVacunas())
                 .usuario(usuario)
                 .cargos(cargos)
                 .sedes(sedes)
@@ -143,6 +145,8 @@ public class HojaVidaService {
         hojaVida.setResponsableEvaluacionId(request.responsableEvaluacionId());
         hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
         hojaVida.setUsuarioUltimaEdicion(request.usuarioUltimaEdicion());
+        hojaVida.setPerfilVacunacion(request.perfilVacunacion());
+        hojaVida.setDetalleVacunas(request.detalleVacunas());
         hojaVida.setUsuario(usuario);
         hojaVida.setCargos(cargos);
         hojaVida.setSedes(sedes);
@@ -237,6 +241,8 @@ public class HojaVidaService {
                 hojaVida.getResponsableEvaluacionId(),
                 hojaVida.getFechaUltimaEdicion(),
                 hojaVida.getUsuarioUltimaEdicion(),
+                hojaVida.getPerfilVacunacion(),
+                hojaVida.getDetalleVacunas(),
                 cargosDTO,
                 sedesDTO
         );

@@ -27,9 +27,9 @@ public class PersonaStatusDTO {
         private Long vacunaId;
         private String nombre;
         private boolean completado;
+        private String detalleDosis;
         private LocalDate fechaAplicacion;
         private LocalDate fechaVencimiento;
         private boolean vencido;
-        private String detalleDosis;
     }
 }
