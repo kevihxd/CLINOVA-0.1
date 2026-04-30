@@ -1,11 +1,11 @@
 package com.clinova.controller;
 
 import com.clinova.dto.ActaDTO;
-import com.clinova.dto.StructureResponses;
+import com.clinova.entity.Usuario;
 import com.clinova.service.ActaService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,26 +18,31 @@ public class ActaController {
     private final ActaService actaService;
 
     @PostMapping
-    public StructureResponses<ActaDTO> crearActa(@RequestBody ActaDTO request) {
-        ActaDTO response = actaService.crearActa(request);
-        return new StructureResponses<>("exito", "Acta creada exitosamente", response);
+    public ResponseEntity<ActaDTO> crearActa(@RequestBody ActaDTO actaDTO) {
+        return ResponseEntity.ok(actaService.crearActa(actaDTO));
     }
 
     @GetMapping
-    public StructureResponses<List<ActaDTO>> obtenerTodas() {
-        List<ActaDTO> response = actaService.obtenerTodas();
-        return new StructureResponses<>("exito", "Actas obtenidas", response);
+    public ResponseEntity<List<ActaDTO>> obtenerTodas() {
+        return ResponseEntity.ok(actaService.obtenerTodas());
     }
 
     @GetMapping("/{id}")
-    public StructureResponses<ActaDTO> obtenerPorId(@PathVariable Long id) {
-        ActaDTO response = actaService.obtenerPorId(id);
-        return new StructureResponses<>("exito", "Acta obtenida", response);
+    public ResponseEntity<ActaDTO> obtenerPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(actaService.obtenerPorId(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ActaDTO> actualizarActa(
+            @PathVariable Long id,
+            @RequestBody ActaDTO actaDTO,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+        return ResponseEntity.ok(actaService.actualizarActa(id, actaDTO, usuarioAutenticado));
     }
 
     @DeleteMapping("/{id}")
-    public StructureResponses<Void> eliminarActa(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminarActa(@PathVariable Long id) {
         actaService.eliminarActa(id);
-        return new StructureResponses<>("exito", "Acta eliminada exitosamente", null);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -11,5 +11,4 @@ public interface HojaVidaRepository extends JpaRepository<HojaVida, Long> {
 
     Optional<HojaVida> findByCedula(String cedula);
 
-    boolean existsByCedula(String cedula);
 }
