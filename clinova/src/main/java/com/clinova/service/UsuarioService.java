@@ -29,6 +29,12 @@ public class UsuarioService {
         return usuarioRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public Usuario obtenerPorDocumento(String numeroDocumento) {
+        return usuarioRepository.findByPersona_NumeroDocumento(numeroDocumento)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    }
+
     @Transactional
     public Usuario crearUsuario(UsuarioRequestDTO dto) {
         if (usuarioRepository.existsByUsername(dto.getUsername())) {

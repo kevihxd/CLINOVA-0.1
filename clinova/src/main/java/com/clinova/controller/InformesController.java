@@ -27,4 +27,9 @@ public class InformesController {
     public ResponseEntity<List<ReporteVacunacionDTO>> obtenerReporteVacunacion() {
         return ResponseEntity.ok(informesService.generarReporteVacunacion());
     }
+
+    @GetMapping("/incapacidades")
+    public ResponseEntity<List<com.clinova.dto.ReporteIncapacidadDTO>> obtenerReporteIncapacidades() {
+        return ResponseEntity.ok(informesService.generarReporteIncapacidades());
+    }
 }

@@ -24,7 +24,7 @@ public class Cargo {
 
     @ManyToOne
     @JoinColumn(name = "reporta_a_id")
-    @JsonIgnoreProperties("reportaA")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "reportaA"})
     private Cargo reportaA;
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -33,5 +33,6 @@ public class Cargo {
             joinColumns = @JoinColumn(name = "cargo_id"),
             inverseJoinColumns = @JoinColumn(name = "permiso_id")
     )
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Set<Permiso> permisos = new HashSet<>();
 }

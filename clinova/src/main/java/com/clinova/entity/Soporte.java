@@ -36,6 +36,6 @@ public class Soporte {
     private String estado;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hoja_vida_id", nullable = false)
+    @JoinColumn(name = "hoja_vida_id", nullable = true)
     private HojaVida hojaVida;
 }

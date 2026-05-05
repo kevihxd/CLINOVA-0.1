@@ -21,6 +21,11 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.listarTodos());
     }
 
+    @GetMapping("/documento/{numeroDocumento}")
+    public ResponseEntity<Usuario> obtenerPorDocumento(@PathVariable String numeroDocumento) {
+        return ResponseEntity.ok(usuarioService.obtenerPorDocumento(numeroDocumento));
+    }
+
     @PostMapping
     public ResponseEntity<Usuario> crear(@RequestBody UsuarioRequestDTO dto) {
         return ResponseEntity.ok(usuarioService.crearUsuario(dto));
