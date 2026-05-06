@@ -1,6 +1,7 @@
 package com.clinova.controller;
 
 import com.clinova.entity.Sede;
+import com.clinova.dto.SedeDTO;
 import com.clinova.repository.SedeRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,10 @@ public class SedeController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Sede>> listarSedes() {
-        return ResponseEntity.ok(sedeRepository.findAll());
+    public ResponseEntity<List<SedeDTO>> listarSedes() {
+        List<SedeDTO> sedesDTO = sedeRepository.findAll().stream()
+                .map(sede -> new SedeDTO(sede.getId(), sede.getNombre()))
+                .toList();
+        return ResponseEntity.ok(sedesDTO);
     }
 }

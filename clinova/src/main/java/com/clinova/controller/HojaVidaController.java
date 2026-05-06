@@ -5,8 +5,10 @@ import com.clinova.dto.HojaVidaResponseDTO;
 import com.clinova.service.HojaVidaService;
 import com.clinova.repository.HojaVidaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -59,5 +61,16 @@ public class HojaVidaController {
         }
         hojaVidaRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<HojaVidaResponseDTO> subirFoto(
+            @PathVariable Long id,
+            @RequestParam("foto") MultipartFile archivo) {
+        try {
+            return ResponseEntity.ok(hojaVidaService.subirFoto(id, archivo));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

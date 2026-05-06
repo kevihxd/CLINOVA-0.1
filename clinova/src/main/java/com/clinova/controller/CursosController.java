@@ -9,15 +9,16 @@ import com.clinova.repository.HojaVidaRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/cursos")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class CursosController {
 
     private final CursoMaestroRepository cursoMaestroRepository;
@@ -31,21 +32,28 @@ public class CursosController {
 
     @PostMapping("/catalogo")
     public ResponseEntity<CursoMaestro> crearCursoCatalogo(@RequestBody CursoMaestro payload) {
-        return ResponseEntity.ok(cursoMaestroRepository.save(payload));
+        // Aseguramos que no venga un ID (evita confusión de merge vs persist)
+        payload.setId(null);
+        CursoMaestro guardado = cursoMaestroRepository.save(payload);
+        return ResponseEntity.ok(guardado);
     }
 
     @GetMapping("/asignados/{hojaVidaId}")
+    @Transactional(readOnly = true)  // <-- FIX: sesión activa para evitar LazyInitializationException
     public ResponseEntity<List<CursoAsignado>> listarAsignados(@PathVariable Long hojaVidaId) {
         return ResponseEntity.ok(cursoAsignadoRepository.findByHojaVidaId(hojaVidaId));
     }
 
     @PostMapping("/asignar")
+    @Transactional  // <-- FIX: sesión activa
     public ResponseEntity<?> asignarCurso(@RequestBody AsignarCursoRequest request) {
         HojaVida hojaVida = hojaVidaRepository.findById(request.getHojaVidaId()).orElse(null);
         CursoMaestro cursoMaestro = cursoMaestroRepository.findById(request.getCursoMaestroId()).orElse(null);
 
         if (hojaVida == null || cursoMaestro == null) {
-            return ResponseEntity.badRequest().body("Hoja de vida o curso no encontrado");
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Hoja de vida o curso no encontrado")
+            );
         }
 
         CursoAsignado nuevo = CursoAsignado.builder()

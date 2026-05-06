@@ -1,6 +1,7 @@
 package com.clinova.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,6 +27,7 @@ public class CursoAsignado {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "curso_maestro_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private CursoMaestro cursoMaestro;
 
     private LocalDate fechaLimite;

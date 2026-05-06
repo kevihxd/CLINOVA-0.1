@@ -37,6 +37,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/migracion/**").permitAll()    // Permite migraciones por Postman sin token
                         .requestMatchers("/api/v1/cursos/**").permitAll()       // TEMPORAL: Debugging
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll() // Swagger
+                        .requestMatchers("/uploads/**").permitAll()             // Fotos y archivos estáticos
                         .requestMatchers("/error").permitAll()                  // Permite que Spring devuelva errores reales (ej. 401 en login fallido)
                         .anyRequest().authenticated()
                 )

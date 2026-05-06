@@ -24,7 +24,7 @@ public class Cargo {
 
     @ManyToOne
     @JoinColumn(name = "reporta_a_id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "reportaA"})
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "reportaA", "permisos"})
     private Cargo reportaA;
 
     @ManyToMany(fetch = FetchType.EAGER)

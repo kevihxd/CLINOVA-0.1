@@ -28,7 +28,7 @@ public class HojaVida {
     @Column(nullable = false, unique = true, length = 20)
     private String cedula;
 
-    @Column(nullable = false)
+    @Column
     private LocalDate fechaNacimiento;
 
     @Column(length = 200)
