@@ -8,7 +8,10 @@ import com.clinova.entity.Incapacidad;
 import com.clinova.repository.UsuarioRepository;
 import com.clinova.repository.HojaVidaRepository;
 import com.clinova.repository.IncapacidadRepository;
+import com.clinova.repository.CursoAsignadoRepository;
 import com.clinova.entity.HojaVida;
+import com.clinova.entity.CursoAsignado;
+import com.clinova.dto.ReporteCursoDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,7 @@ public class InformesService {
     private final UsuarioRepository usuarioRepository;
     private final HojaVidaRepository hojaVidaRepository;
     private final IncapacidadRepository incapacidadRepository;
+    private final CursoAsignadoRepository cursoAsignadoRepository;
 
     @Transactional(readOnly = true)
     public List<ReporteVacunacionDTO> generarReporteVacunacion() {
@@ -44,6 +48,40 @@ public class InformesService {
         return incapacidadRepository.findAll().stream()
                 .map(this::mapearIncapacidad)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReporteCursoDTO> generarReporteCursos() {
+        return cursoAsignadoRepository.findAll().stream()
+                .map(this::mapearCurso)
+                .collect(Collectors.toList());
+    }
+
+    private ReporteCursoDTO mapearCurso(CursoAsignado ca) {
+        Usuario u = ca.getUsuario();
+        String cedula = buscarValorGlobal(u, "cedula", "numerodocumento", "identificacion");
+        if (cedula.isEmpty()) cedula = String.valueOf(u.getId());
+        
+        String nombres = buscarValorGlobal(u, "nombres", "nombre");
+        String apellidos = buscarValorGlobal(u, "apellidos", "apellido");
+        
+        HojaVida hv = hojaVidaRepository.findByUsuario_Id(u.getId()).orElse(null);
+        if (hv != null) {
+            if (hv.getCedula() != null && !hv.getCedula().isEmpty()) cedula = hv.getCedula();
+            if (hv.getNombres() != null && !hv.getNombres().isEmpty()) nombres = hv.getNombres();
+            if (hv.getApellidos() != null && !hv.getApellidos().isEmpty()) apellidos = hv.getApellidos();
+        }
+
+        return new ReporteCursoDTO(
+                cedula,
+                nombres,
+                apellidos,
+                ca.getCursoMaestro().getNombre(),
+                ca.getEstado(),
+                ca.getFechaRealizacion(),
+                ca.getFechaExpiracion(),
+                ca.getCertificadoUrl()
+        );
     }
 
     private ReporteVacunacionDTO mapearVacunacion(Usuario u) {

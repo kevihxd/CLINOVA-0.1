@@ -117,6 +117,21 @@ public class SoporteService {
         return mapearAResponseDTO(actualizado);
     }
 
+    public String guardarArchivo(MultipartFile archivo, String subDirectorio) {
+        String nombreArchivoOriginal = archivo.getOriginalFilename();
+        String nombreArchivoUnico = UUID.randomUUID().toString() + "_" + nombreArchivoOriginal;
+        String rutaBase = "uploads/" + subDirectorio + "/";
+        Path rutaDestino = Paths.get(rutaBase + nombreArchivoUnico);
+
+        try {
+            Files.createDirectories(rutaDestino.getParent());
+            Files.copy(archivo.getInputStream(), rutaDestino, StandardCopyOption.REPLACE_EXISTING);
+            return "/" + rutaBase + nombreArchivoUnico;
+        } catch (IOException e) {
+            throw new RuntimeException("Error al guardar el archivo", e);
+        }
+    }
+
     private SoporteResponseDTO mapearAResponseDTO(Soporte soporte) {
         return new SoporteResponseDTO(
                 soporte.getId(),

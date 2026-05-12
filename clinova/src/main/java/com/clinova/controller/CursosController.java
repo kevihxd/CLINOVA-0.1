@@ -1,18 +1,13 @@
 package com.clinova.controller;
 
-import com.clinova.entity.CursoAsignado;
-import com.clinova.entity.CursoMaestro;
-import com.clinova.entity.HojaVida;
-import com.clinova.repository.CursoAsignadoRepository;
-import com.clinova.repository.CursoMaestroRepository;
-import com.clinova.repository.HojaVidaRepository;
-import lombok.Data;
+import com.clinova.dto.CursoAsignadoDTO;
+import com.clinova.service.CursosService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
+import com.clinova.dto.CursoMaestroDTO;
 import java.util.List;
 import java.util.Map;
 
@@ -21,61 +16,68 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CursosController {
 
-    private final CursoMaestroRepository cursoMaestroRepository;
-    private final CursoAsignadoRepository cursoAsignadoRepository;
-    private final HojaVidaRepository hojaVidaRepository;
+    private final CursosService cursosService;
 
-    @GetMapping("/catalogo")
-    public ResponseEntity<List<CursoMaestro>> listarCatalogo() {
-        return ResponseEntity.ok(cursoMaestroRepository.findAll());
+    @GetMapping("/mis-cursos/{usuarioId}")
+    public ResponseEntity<List<CursoAsignadoDTO>> listarMisCursos(@PathVariable Long usuarioId) {
+        return ResponseEntity.ok(cursosService.obtenerCursosPorUsuario(usuarioId));
     }
 
-    @PostMapping("/catalogo")
-    public ResponseEntity<CursoMaestro> crearCursoCatalogo(@RequestBody CursoMaestro payload) {
-        // Aseguramos que no venga un ID (evita confusión de merge vs persist)
-        payload.setId(null);
-        CursoMaestro guardado = cursoMaestroRepository.save(payload);
-        return ResponseEntity.ok(guardado);
+    @PostMapping("/subir-certificado/{asignacionId}")
+    public ResponseEntity<String> subirCertificado(
+            @PathVariable Long asignacionId,
+            @RequestParam("archivo") MultipartFile archivo) {
+        cursosService.subirCertificado(asignacionId, archivo);
+        return ResponseEntity.ok("Certificado cargado exitosamente");
     }
 
-    @GetMapping("/asignados/{hojaVidaId}")
-    @Transactional(readOnly = true)  // <-- FIX: sesión activa para evitar LazyInitializationException
-    public ResponseEntity<List<CursoAsignado>> listarAsignados(@PathVariable Long hojaVidaId) {
-        return ResponseEntity.ok(cursoAsignadoRepository.findByHojaVidaId(hojaVidaId));
+    @GetMapping("/maestros")
+    public ResponseEntity<List<CursoMaestroDTO>> listarCursosMaestros() {
+        return ResponseEntity.ok(cursosService.obtenerCursosMaestros());
     }
 
-    @PostMapping("/asignar")
-    @Transactional  // <-- FIX: sesión activa
-    public ResponseEntity<?> asignarCurso(@RequestBody AsignarCursoRequest request) {
-        HojaVida hojaVida = hojaVidaRepository.findById(request.getHojaVidaId()).orElse(null);
-        CursoMaestro cursoMaestro = cursoMaestroRepository.findById(request.getCursoMaestroId()).orElse(null);
-
-        if (hojaVida == null || cursoMaestro == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Hoja de vida o curso no encontrado")
-            );
-        }
-
-        CursoAsignado nuevo = CursoAsignado.builder()
-                .hojaVida(hojaVida)
-                .cursoMaestro(cursoMaestro)
-                .fechaLimite(request.getFechaLimite())
-                .estado("PENDIENTE")
-                .build();
-
-        return ResponseEntity.ok(cursoAsignadoRepository.save(nuevo));
+    @PostMapping("/maestros")
+    public ResponseEntity<CursoMaestroDTO> crearCursoMaestro(@RequestBody CursoMaestroDTO request) {
+        return ResponseEntity.ok(cursosService.crearCursoMaestro(request));
     }
 
-    @DeleteMapping("/asignados/{id}")
-    public ResponseEntity<?> eliminarAsignacion(@PathVariable Long id) {
-        cursoAsignadoRepository.deleteById(id);
+    @PutMapping("/maestros/{id}")
+    public ResponseEntity<CursoMaestroDTO> actualizarCursoMaestro(@PathVariable Long id, @RequestBody CursoMaestroDTO request) {
+        return ResponseEntity.ok(cursosService.actualizarCursoMaestro(id, request));
+    }
+
+    @DeleteMapping("/maestros/{id}")
+    public ResponseEntity<Void> eliminarCursoMaestro(@PathVariable Long id) {
+        cursosService.eliminarCursoMaestro(id);
         return ResponseEntity.ok().build();
     }
 
-    @Data
-    public static class AsignarCursoRequest {
-        private Long hojaVidaId;
-        private Long cursoMaestroId;
-        private LocalDate fechaLimite;
+    @PostMapping("/asignacion-masiva")
+    public ResponseEntity<Void> asignarMasivo(@RequestBody Map<String, Long> payload) {
+        cursosService.asignarMasivo(payload.get("cursoId"));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/asignar")
+    public ResponseEntity<Void> asignarCurso(@RequestBody Map<String, Long> payload) {
+        cursosService.asignarCurso(payload.get("usuarioId"), payload.get("cursoMaestroId"));
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/asignados")
+    public ResponseEntity<List<CursoAsignadoDTO>> listarAsignados(@RequestParam Long usuarioId) {
+        return ResponseEntity.ok(cursosService.obtenerCursosPorUsuario(usuarioId));
+    }
+
+    @DeleteMapping("/asignados/{id}")
+    public ResponseEntity<Void> eliminarAsignacion(@PathVariable Long id) {
+        cursosService.eliminarAsignacion(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/asignados/{id}/estado")
+    public ResponseEntity<Void> actualizarEstado(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        cursosService.actualizarEstado(id, payload.get("estado"));
+        return ResponseEntity.ok().build();
     }
 }

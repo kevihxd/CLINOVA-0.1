@@ -2,6 +2,7 @@ package com.clinova.controller;
 
 import com.clinova.dto.ReporteTalentoHumanoDTO;
 import com.clinova.dto.ReporteVacunacionDTO;
+import com.clinova.dto.ReporteCursoDTO;
 import com.clinova.service.InformesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,5 +32,10 @@ public class InformesController {
     @GetMapping("/incapacidades")
     public ResponseEntity<List<com.clinova.dto.ReporteIncapacidadDTO>> obtenerReporteIncapacidades() {
         return ResponseEntity.ok(informesService.generarReporteIncapacidades());
+    }
+
+    @GetMapping("/cursos")
+    public ResponseEntity<List<ReporteCursoDTO>> obtenerReporteCursos() {
+        return ResponseEntity.ok(informesService.generarReporteCursos());
     }
 }

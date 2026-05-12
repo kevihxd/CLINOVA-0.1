@@ -23,6 +23,7 @@ public class UsuarioService {
     private final PersonaRepository personaRepository;
     private final CargoRepository cargoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CursosService cursosService;
 
     @Transactional(readOnly = true)
     public List<Usuario> listarTodos() {
@@ -72,7 +73,9 @@ public class UsuarioService {
                 .persona(persona)
                 .build();
 
-        return usuarioRepository.save(usuario);
+        Usuario guardado = usuarioRepository.save(usuario);
+        cursosService.asignarCursosGlobalesAUsuario(guardado);
+        return guardado;
     }
 
     @Transactional
