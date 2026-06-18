@@ -37,6 +37,15 @@ public class Documento {
     private String ubicacion;
     private String version;
 
+    @Column(name = "fecha_elaboracion")
+    private String fechaElaboracion;
+
+    @Column(name = "fecha_revision")
+    private String fechaRevision;
+
+    @Column(name = "fecha_aprobacion")
+    private String fechaAprobacion;
+
     @Column(length = 1000)
     private String aprueba;
 
@@ -65,4 +74,11 @@ public class Documento {
 
     @Column(length = 1000)
     private String visualizacion;
+
+    // --- Archivo Físico Kawak Backup ---
+    @Column(name = "ruta_archivo_local", length = 500)
+    private String rutaArchivoLocal;
+
+    @Column(name = "extension_archivo", length = 10)
+    private String extensionArchivo;
 }

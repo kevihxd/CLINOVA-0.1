@@ -1,3 +1,6 @@
 package com.clinova.dto;
 
-public record CategoriaSoporteDTO(Long id, String nombre) {}
+public record CategoriaSoporteDTO(
+        Long id,
+        String nombre
+) {}

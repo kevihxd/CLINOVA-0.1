@@ -8,6 +8,7 @@ import com.clinova.repository.DocumentoRepository;
 import com.clinova.service.DocumentoHistorialService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -21,8 +22,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/documentos")
 @RequiredArgsConstructor
@@ -40,14 +43,33 @@ public class DocumentoController {
             throw new RuntimeException("No se pudo crear la carpeta de uploads");
         }
     }
-
     @GetMapping
-    public ResponseEntity<StructureResponses<List<Documento>>> obtenerTodos() {
+    public ResponseEntity<StructureResponses<List<com.clinova.dto.DocumentoListDTO>>> obtenerTodos() {
         try {
-            List<Documento> lista = repository.findAll();
+            List<com.clinova.dto.DocumentoListDTO> lista = repository.findAllLightweight();
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Listado obtenido", lista));
         } catch (Exception e) {
+            log.error("Error en obtenerTodos: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/codigo-preview")
+    public ResponseEntity<Map<String, String>> previewCodigo(
+            @RequestParam String proceso,
+            @RequestParam String tipo) {
+        String codigo = generarCodigo(proceso, tipo);
+        return ResponseEntity.ok(Map.of("codigo", codigo));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<StructureResponses<Documento>> obtenerPorId(@PathVariable Long id) {
+        try {
+            Documento doc = repository.findById(id).orElseThrow();
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "OK", doc));
+        } catch (Exception e) {
+            log.error("Error en obtenerPorId [id={}]: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "No encontrado", null));
         }
     }
 
@@ -83,14 +105,60 @@ public class DocumentoController {
                 documento.setFechaRevision(fechaHoy);
             }
 
+            String tipoCodigo = documento.getCodigo();
+            if (tipoCodigo == null || tipoCodigo.isBlank() ||
+                    tipoCodigo.equalsIgnoreCase("Automático") || tipoCodigo.equalsIgnoreCase("Automatico") ||
+                    tipoCodigo.equalsIgnoreCase("Semiautomático") || tipoCodigo.equalsIgnoreCase("Semiautomatico")) {
+                documento.setCodigo(generarCodigo(documento.getProceso(), documento.getTipo()));
+            }
+
             documento.setEstado("EN REVISIÓN");
             Documento guardado = repository.save(documento);
             historialService.registrarHistorial(
                     guardado.getId(), "CREACION",
-                    "Documento '" + guardado.getNombre() + "' enviado a revisión",
+                    "Documento '" + guardado.getNombre() + "' [" + guardado.getCodigo() + "] enviado a revisión",
                     usuario);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento enviado a revisión", guardado));
         } catch (Exception e) {
+            log.error("Error en crear: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<StructureResponses<Documento>> actualizar(
+            @PathVariable Long id,
+            @RequestBody Documento cambios,
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Documento doc = repository.findById(id).orElseThrow();
+            if (cambios.getNombre()           != null) doc.setNombre(cambios.getNombre());
+            if (cambios.getTipo()             != null) doc.setTipo(cambios.getTipo());
+            if (cambios.getProceso()          != null) doc.setProceso(cambios.getProceso());
+            if (cambios.getSede()             != null) doc.setSede(cambios.getSede());
+            if (cambios.getAlcance()          != null) doc.setAlcance(cambios.getAlcance());
+            if (cambios.getVersion()          != null) doc.setVersion(cambios.getVersion());
+            if (cambios.getConfidencialidad() != null) doc.setConfidencialidad(cambios.getConfidencialidad());
+            if (cambios.getMesesRevision()    != null) doc.setMesesRevision(cambios.getMesesRevision());
+            if (cambios.getCodigo()           != null) doc.setCodigo(cambios.getCodigo());
+            if (cambios.getOtrosProcesos()    != null) doc.setOtrosProcesos(cambios.getOtrosProcesos());
+            if (cambios.getNormas()           != null) doc.setNormas(cambios.getNormas());
+            if (cambios.getElabora()          != null) doc.setElabora(cambios.getElabora());
+            if (cambios.getRevisa()           != null) doc.setRevisa(cambios.getRevisa());
+            if (cambios.getAprueba()          != null) doc.setAprueba(cambios.getAprueba());
+            if (cambios.getVisualizacion()    != null) doc.setVisualizacion(cambios.getVisualizacion());
+            if (cambios.getImpresion()        != null) doc.setImpresion(cambios.getImpresion());
+            if (cambios.getDescargaOriginal() != null) doc.setDescargaOriginal(cambios.getDescargaOriginal());
+            if (cambios.getDescargaPdf()      != null) doc.setDescargaPdf(cambios.getDescargaPdf());
+            if (cambios.getFechaElaboracion() != null) doc.setFechaElaboracion(cambios.getFechaElaboracion());
+            if (cambios.getFechaRevision()    != null) doc.setFechaRevision(cambios.getFechaRevision());
+            if (cambios.getFechaAprobacion()  != null) doc.setFechaAprobacion(cambios.getFechaAprobacion());
+            Documento guardado = repository.save(doc);
+            historialService.registrarHistorial(id, "MODIFICACION",
+                    "Documento '" + guardado.getNombre() + "' [" + guardado.getCodigo() + "] modificado", usuario);
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento actualizado", guardado));
+        } catch (Exception e) {
+            log.error("Error en actualizar [id={}]: {}", id, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
     }
@@ -111,6 +179,7 @@ public class DocumentoController {
                     usuario);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Aprobado", guardado));
         } catch (Exception e) {
+            log.error("Error en aprobar [id={}]: {}", id, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
     }
@@ -122,6 +191,31 @@ public class DocumentoController {
         try {
             Documento doc = repository.findById(id).orElseThrow();
 
+            // 1. Validar si es un documento sincronizado de Kawak con archivo físico
+            if (doc.getRutaArchivoLocal() != null && !doc.getRutaArchivoLocal().isBlank()) {
+                Path file = Paths.get(doc.getRutaArchivoLocal());
+                Resource resource = new UrlResource(file.toUri());
+
+                if (resource.exists() && resource.isReadable()) {
+                    String contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+                    String ext = doc.getExtensionArchivo() != null ? doc.getExtensionArchivo().toLowerCase() : "";
+                    if (ext.equals(".pdf")) contentType = MediaType.APPLICATION_PDF_VALUE;
+                    else if (ext.equals(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    else if (ext.equals(".xlsx")) contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+                    historialService.registrarHistorial(
+                            id, "DESCARGA",
+                            "Archivo original de Kawak descargado (" + ext + ")",
+                            usuario);
+
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Kawak_Doc_" + doc.getKawakId() + ext + "\"")
+                            .header(HttpHeaders.CONTENT_TYPE, contentType)
+                            .body(resource);
+                }
+            }
+
+            // 2. Si no es de Kawak, usar la lógica normal
             if (doc.getUbicacion() == null || doc.getUbicacion().equals("SIN_ARCHIVO")) {
                 return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento no tiene archivo físico", null));
             }
@@ -132,7 +226,7 @@ public class DocumentoController {
             if (resource.exists() && resource.isReadable()) {
                 historialService.registrarHistorial(
                         id, "DESCARGA",
-                        "Archivo descargado o visualizado",
+                        "Archivo local descargado o visualizado",
                         usuario);
                 return ResponseEntity.ok()
                         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getNombre() + ".pdf\"")
@@ -142,6 +236,7 @@ public class DocumentoController {
                 return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El archivo no se encuentra en el servidor", null));
             }
         } catch (Exception e) {
+            log.error("Error en descargar [id={}]: {}", id, e.getMessage(), e);
             return ResponseEntity.status(500).body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
     }
@@ -155,7 +250,51 @@ public class DocumentoController {
             repository.deleteById(id);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Eliminado", null));
         } catch (Exception e) {
+            log.error("Error en eliminar [id={}]: {}", id, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
+    }
+
+    private String generarCodigo(String proceso, String tipo) {
+        String abrevProceso = abreviarProceso(proceso);
+        String abrevTipo = abreviarTipo(tipo);
+        long siguiente = repository.countByCodigoStartingWith(abrevProceso + "-" + abrevTipo + "-") + 1;
+        return abrevProceso + "-" + abrevTipo + "-" + siguiente;
+    }
+
+    private String abreviarProceso(String proceso) {
+        if (proceso == null || proceso.isBlank()) return "DOC";
+        String[] palabras = proceso.trim().toUpperCase().split("[\\s]+");
+        StringBuilder sb = new StringBuilder();
+        for (String p : palabras) {
+            if (p.equalsIgnoreCase("DE") || p.equalsIgnoreCase("Y") || p.equalsIgnoreCase("E")) continue;
+            if (!p.isEmpty()) sb.append(p.charAt(0));
+        }
+        String siglas = sb.toString();
+        return siglas.length() > 6 ? siglas.substring(0, 6) : siglas;
+    }
+
+    private String abreviarTipo(String tipo) {
+        if (tipo == null || tipo.isBlank()) return "DOC";
+        return switch (tipo.trim().toUpperCase()) {
+            case "PROCEDIMIENTO"    -> "PR";
+            case "PROTOCOLO"        -> "PT";
+            case "FORMATO"          -> "FO";
+            case "MANUAL"           -> "MA";
+            case "GUÍA", "GUIA"    -> "GU";
+            case "INSTRUCTIVO"      -> "IN";
+            case "POLÍTICA", "POLITICA" -> "PO";
+            case "PROGRAMA"         -> "PG";
+            case "PLAN"             -> "PL";
+            case "INFORME"          -> "IF";
+            case "ACTA"             -> "AC";
+            case "FOLLETO"          -> "FL";
+            case "AFICHE"           -> "AF";
+            case "RESOLUCIÓN", "RESOLUCION" -> "RS";
+            case "CIRCULAR"         -> "CI";
+            case "REGISTRO"         -> "RG";
+            default -> tipo.trim().toUpperCase().replaceAll("[AEIOUÁÉÍÓÚ ]", "").substring(
+                    0, Math.min(3, tipo.trim().replaceAll("[AEIOUÁÉÍÓÚ ]", "").length()));
+        };
     }
 }

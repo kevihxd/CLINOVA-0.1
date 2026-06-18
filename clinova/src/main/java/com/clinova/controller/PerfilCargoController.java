@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/perfiles-cargo")
-@CrossOrigin(origins = "*")
 public class PerfilCargoController {
 
     @Autowired

@@ -20,4 +20,10 @@ public class Permiso {
     private String nombre;
 
     private String descripcion;
+
+    @Column(length = 50)
+    private String modulo;
+
+    @Column(length = 20)
+    private String accion; // CREAR, MODIFICAR, ELIMINAR, VER
 }

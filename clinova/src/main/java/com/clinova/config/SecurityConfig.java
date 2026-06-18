@@ -33,16 +33,15 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Permite preflight de CORS
-                        .requestMatchers("/api/v1/auth/**").permitAll()         // Permite Login y Registro
-                        .requestMatchers("/api/v1/informes/**").permitAll()     // Permite los informes que creamos
-                        .requestMatchers("/api/v1/migracion/**").permitAll()    // Permite migraciones por Postman sin token
-                        .requestMatchers("/api/v1/cursos/**").permitAll()       // TEMPORAL: Debugging
-                        .requestMatchers("/api/v1/sedes/**").permitAll()        // Sedes accesibles para formularios
-                        .requestMatchers("/api/v1/vacunacion/**").permitAll()   // Catálogo de vacunas para informes
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll() // Swagger
-                        .requestMatchers("/uploads/**").permitAll()             // Fotos y archivos estáticos
-                        .requestMatchers("/error").permitAll()                  // Permite que Spring devuelva errores reales (ej. 401 en login fallido)
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/sedes", "/api/v1/sedes/**").permitAll()
+                        .requestMatchers("/api/v1/vacunacion/**").permitAll()
+                        .requestMatchers("/api/v1/informes/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers("/api/v1/migracion/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -58,7 +57,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*")); // Permite cualquier origen (localhost:5173, 5174, IP local, etc)
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
         configuration.setAllowCredentials(true);

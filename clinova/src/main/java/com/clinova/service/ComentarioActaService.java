@@ -19,6 +19,7 @@ public class ComentarioActaService {
 
     private final ComentarioActaRepository comentarioActaRepository;
     private final ActaRepository actaRepository;
+    private final ActaHistorialService actaHistorialService;
 
     @Transactional
     public ComentarioActaDTO agregarComentario(Long actaId, String contenido, Usuario autor) {
@@ -32,6 +33,15 @@ public class ComentarioActaService {
                 .build();
 
         comentario = comentarioActaRepository.save(comentario);
+
+        // Registrar en historial de trazabilidad
+        actaHistorialService.registrarHistorial(
+                actaId,
+                "COMENTARIO",
+                "Comentario agregado: \"" + (contenido.length() > 60 ? contenido.substring(0, 57) + "..." : contenido) + "\"",
+                autor
+        );
+
         return mapearADto(comentario);
     }
 

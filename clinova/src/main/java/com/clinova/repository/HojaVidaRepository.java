@@ -8,8 +8,7 @@ import java.util.Optional;
 
 @Repository
 public interface HojaVidaRepository extends JpaRepository<HojaVida, Long> {
-
     Optional<HojaVida> findByCedula(String cedula);
     Optional<HojaVida> findByUsuario_Id(Long usuarioId);
-
-}
+    Optional<HojaVida> findByKawakId(Long kawakId);
+}

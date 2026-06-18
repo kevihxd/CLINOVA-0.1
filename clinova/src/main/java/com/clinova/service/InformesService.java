@@ -1,17 +1,8 @@
 package com.clinova.service;
 
-import com.clinova.dto.ReporteTalentoHumanoDTO;
-import com.clinova.dto.ReporteVacunacionDTO;
-import com.clinova.dto.ReporteIncapacidadDTO;
-import com.clinova.entity.Usuario;
-import com.clinova.entity.Incapacidad;
-import com.clinova.repository.UsuarioRepository;
-import com.clinova.repository.HojaVidaRepository;
-import com.clinova.repository.IncapacidadRepository;
-import com.clinova.repository.CursoAsignadoRepository;
-import com.clinova.entity.HojaVida;
-import com.clinova.entity.CursoAsignado;
-import com.clinova.dto.ReporteCursoDTO;
+import com.clinova.dto.*;
+import com.clinova.entity.*;
+import com.clinova.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,17 +19,18 @@ public class InformesService {
     private final HojaVidaRepository hojaVidaRepository;
     private final IncapacidadRepository incapacidadRepository;
     private final CursoAsignadoRepository cursoAsignadoRepository;
+    private final DocumentoRepository documentoRepository;
 
     @Transactional(readOnly = true)
     public List<ReporteVacunacionDTO> generarReporteVacunacion() {
-        return usuarioRepository.findAll().stream()
+        return hojaVidaRepository.findAll().stream()
                 .map(this::mapearVacunacion)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<ReporteTalentoHumanoDTO> generarReporteTalentoHumano() {
-        return usuarioRepository.findAll().stream()
+        return hojaVidaRepository.findAll().stream()
                 .map(this::mapearTalentoHumano)
                 .collect(Collectors.toList());
     }
@@ -57,93 +49,101 @@ public class InformesService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<ReporteDocumentoDTO> generarReporteDocumentos() {
+        return documentoRepository.findAll().stream()
+                .map(this::mapearDocumento)
+                .collect(Collectors.toList());
+    }
+
+    private String primerCargo(HojaVida hv) {
+        if (hv == null || hv.getCargos() == null || hv.getCargos().isEmpty()) return "";
+        return hv.getCargos().get(0).getNombre();
+    }
+
+    private String primeraSede(HojaVida hv) {
+        if (hv == null || hv.getSedes() == null || hv.getSedes().isEmpty()) return "";
+        return hv.getSedes().get(0).getNombre();
+    }
+
+    private String todosLosCargos(HojaVida hv) {
+        if (hv == null || hv.getCargos() == null || hv.getCargos().isEmpty()) return "";
+        return hv.getCargos().stream().map(Cargo::getNombre).collect(Collectors.joining(", "));
+    }
+
+    private String todasLasSedes(HojaVida hv) {
+        if (hv == null || hv.getSedes() == null || hv.getSedes().isEmpty()) return "";
+        return hv.getSedes().stream().map(Sede::getNombre).collect(Collectors.joining(", "));
+    }
+
+    private ReporteTalentoHumanoDTO mapearTalentoHumano(HojaVida hv) {
+        return new ReporteTalentoHumanoDTO(
+                nvl(hv.getCedula()),
+                nvl(hv.getNombres()),
+                nvl(hv.getApellidos()),
+                todosLosCargos(hv),
+                todasLasSedes(hv),
+                nvl(hv.getTipoContrato()),
+                nvl(hv.getEstado()),
+                nvl(hv.getArl()),
+                nvl(hv.getEps()),
+                nvl(hv.getAfp()),
+                nvl(hv.getCajaCompensacion()),
+                hv.getSalario(),
+                nvl(hv.getSubsidioTransporte()),
+                hv.getFechaIngreso(),
+                hv.getFechaRetiro(),
+                nvl(hv.getMotivoRetiro()),
+                nvl(hv.getTelefono()),
+                nvl(hv.getCorreoElectronico()),
+                nvl(hv.getDireccionResidencia()),
+                nvl(hv.getContactoEmergencia()),
+                nvl(hv.getTelefonoContactoEmergencia())
+        );
+    }
+
+    private ReporteVacunacionDTO mapearVacunacion(HojaVida hv) {
+        String detalle = nvl(hv.getDetalleVacunas());
+        if (detalle.isEmpty()) detalle = "Sin registro";
+
+        return new ReporteVacunacionDTO(
+                nvl(hv.getCedula()),
+                nvl(hv.getNombres()),
+                nvl(hv.getApellidos()),
+                todosLosCargos(hv),
+                todasLasSedes(hv),
+                nvl(hv.getArl()),
+                nvl(hv.getEps()),
+                nvl(hv.getPerfilVacunacion()),
+                detalle,
+                determinarSemaforo(detalle)
+        );
+    }
+
     private ReporteCursoDTO mapearCurso(CursoAsignado ca) {
         Usuario u = ca.getUsuario();
-        String cedula = buscarValorGlobal(u, "cedula", "numerodocumento", "identificacion");
-        if (cedula.isEmpty()) cedula = String.valueOf(u.getId());
-        
-        String nombres = buscarValorGlobal(u, "nombres", "nombre");
-        String apellidos = buscarValorGlobal(u, "apellidos", "apellido");
-        
         HojaVida hv = hojaVidaRepository.findByUsuario_Id(u.getId()).orElse(null);
-        if (hv != null) {
-            if (hv.getCedula() != null && !hv.getCedula().isEmpty()) cedula = hv.getCedula();
-            if (hv.getNombres() != null && !hv.getNombres().isEmpty()) nombres = hv.getNombres();
-            if (hv.getApellidos() != null && !hv.getApellidos().isEmpty()) apellidos = hv.getApellidos();
-        }
+
+        String cedula = hv != null ? nvl(hv.getCedula()) : String.valueOf(u.getId());
+        String nombres = hv != null ? nvl(hv.getNombres()) : nvl(buscarValorGlobal(u, "nombres", "nombre"));
+        String apellidos = hv != null ? nvl(hv.getApellidos()) : nvl(buscarValorGlobal(u, "apellidos", "apellido"));
+
+        CursoMaestro cm = ca.getCursoMaestro();
 
         return new ReporteCursoDTO(
                 cedula,
                 nombres,
                 apellidos,
-                ca.getCursoMaestro().getNombre(),
-                ca.getEstado(),
+                todosLosCargos(hv),
+                todasLasSedes(hv),
+                cm.getNombre(),
+                nvl(cm.getDescripcion()),
+                cm.getMesesVigencia(),
+                nvl(ca.getEstado()),
                 ca.getFechaRealizacion(),
                 ca.getFechaExpiracion(),
-                ca.getCertificadoUrl()
-        );
-    }
-
-    private ReporteVacunacionDTO mapearVacunacion(Usuario u) {
-        String cedula = buscarValorGlobal(u, "cedula", "numerodocumento", "identificacion");
-        String nombres = buscarValorGlobal(u, "nombres", "nombre");
-        String apellidos = buscarValorGlobal(u, "apellidos", "apellido");
-        String perfil = "";
-        String detalle = "";
-
-        HojaVida hv = hojaVidaRepository.findByUsuario_Id(u.getId()).orElse(null);
-        if (hv != null) {
-            if (hv.getCedula() != null && !hv.getCedula().isEmpty()) cedula = hv.getCedula();
-            if (hv.getNombres() != null && !hv.getNombres().isEmpty()) nombres = hv.getNombres();
-            if (hv.getApellidos() != null && !hv.getApellidos().isEmpty()) apellidos = hv.getApellidos();
-            if (hv.getPerfilVacunacion() != null && !hv.getPerfilVacunacion().isEmpty()) perfil = hv.getPerfilVacunacion();
-            if (hv.getDetalleVacunas() != null && !hv.getDetalleVacunas().isEmpty()) detalle = hv.getDetalleVacunas();
-        }
-
-        if (perfil.isEmpty() && u.getPersona() != null && u.getPersona().getPerfilVacunacion() != null) {
-            perfil = u.getPersona().getPerfilVacunacion();
-        }
-        
-        if (perfil.isEmpty()) perfil = buscarValorGlobal(u, "cargo", "rol");
-
-        if (cedula.isEmpty()) cedula = String.valueOf(u.getId());
-        if (nombres.isEmpty()) nombres = "Usuario " + u.getId();
-        if (detalle.isEmpty()) detalle = "Sin registro";
-        if (perfil.isEmpty()) perfil = "No Asignado";
-
-        return new ReporteVacunacionDTO(
-                cedula, nombres, apellidos, perfil, detalle, determinarSemaforo(detalle)
-        );
-    }
-
-    private ReporteTalentoHumanoDTO mapearTalentoHumano(Usuario u) {
-        String cedula = buscarValorGlobal(u, "cedula", "numerodocumento", "identificacion");
-        String nombres = buscarValorGlobal(u, "nombres", "nombre");
-        String apellidos = buscarValorGlobal(u, "apellidos", "apellido");
-        String cargo = buscarValorGlobal(u, "cargo", "perfil");
-        String contrato = "";
-        String estado = buscarValorGlobal(u, "estado", "activo");
-
-        HojaVida hv = hojaVidaRepository.findByUsuario_Id(u.getId()).orElse(null);
-        if (hv != null) {
-            if (hv.getCedula() != null && !hv.getCedula().isEmpty()) cedula = hv.getCedula();
-            if (hv.getNombres() != null && !hv.getNombres().isEmpty()) nombres = hv.getNombres();
-            if (hv.getApellidos() != null && !hv.getApellidos().isEmpty()) apellidos = hv.getApellidos();
-            if (hv.getTipoContrato() != null && !hv.getTipoContrato().isEmpty()) contrato = hv.getTipoContrato();
-            if (hv.getEstado() != null && !hv.getEstado().isEmpty()) estado = hv.getEstado();
-        }
-
-        if (contrato.isEmpty()) contrato = buscarValorGlobal(u, "contrato", "tipo");
-
-        if (cedula.isEmpty()) cedula = String.valueOf(u.getId());
-        if (nombres.isEmpty()) nombres = "Usuario " + u.getId();
-        if (cargo.isEmpty()) cargo = "No Definido";
-        if (contrato.isEmpty()) contrato = "No Definido";
-        if (estado.isEmpty() || estado.equalsIgnoreCase("true")) estado = "ACTIVO";
-        if (estado.equalsIgnoreCase("false")) estado = "INACTIVO";
-
-        return new ReporteTalentoHumanoDTO(
-                cedula, nombres, apellidos, cargo, contrato, estado.toUpperCase()
+                cm.getFechaLimiteGlobal(),
+                nvl(ca.getCertificadoUrl())
         );
     }
 
@@ -154,53 +154,62 @@ public class InformesService {
         String nombres = buscarValorGlobal(u, "nombres", "nombre");
         String apellidos = buscarValorGlobal(u, "apellidos", "apellido");
         String cargo = buscarValorGlobal(u, "cargo", "perfil");
-        
+
         HojaVida hv = hojaVidaRepository.findByUsuario_Id(u.getId()).orElse(null);
         if (hv != null) {
-            if (hv.getCedula() != null && !hv.getCedula().isEmpty()) cedula = hv.getCedula();
-            if (hv.getNombres() != null && !hv.getNombres().isEmpty()) nombres = hv.getNombres();
-            if (hv.getApellidos() != null && !hv.getApellidos().isEmpty()) apellidos = hv.getApellidos();
+            if (!nvl(hv.getCedula()).isEmpty()) cedula = hv.getCedula();
+            if (!nvl(hv.getNombres()).isEmpty()) nombres = hv.getNombres();
+            if (!nvl(hv.getApellidos()).isEmpty()) apellidos = hv.getApellidos();
+            if (!todosLosCargos(hv).isEmpty()) cargo = todosLosCargos(hv);
         }
 
         if (cedula.isEmpty()) cedula = String.valueOf(u.getId());
         if (tipoDoc.isEmpty()) tipoDoc = "CC";
-        
+
         String nombreCompleto = nombres + (apellidos.isEmpty() ? "" : " " + apellidos);
         String[] cartera = inc.calcularCartera();
 
         return new ReporteIncapacidadDTO(
-                nombreCompleto,
-                tipoDoc,
-                cedula,
-                cargo,
-                inc.getEpsArl(),
-                inc.getTipoIncapacidad(),
-                inc.getCodigo(),
-                inc.getDx(),
-                inc.getFechaInicio(),
-                inc.getFechaFin(),
-                inc.getDiasOtorgados(),
-                inc.getDiasAprobados(),
-                inc.getFechaReporteTH(),
-                inc.getFechaRadicado(),
-                inc.getEstado(),
-                inc.getNumeroRadicacion(),
-                inc.getIbc(),
-                inc.getDiasPagadosIps(),
-                inc.getValorLiquidadoIps(),
-                inc.getDiasPagadosEps(),
-                inc.getValorLiquidadoEps(),
-                inc.getDiasPagadosArl(),
-                cartera[0], // 30
-                cartera[1], // 60
-                cartera[2], // 90
-                cartera[3], // 180
+                nombreCompleto, tipoDoc, cedula, cargo,
+                inc.getEpsArl(), inc.getTipoIncapacidad(), inc.getCodigo(), inc.getDx(),
+                inc.getFechaInicio(), inc.getFechaFin(), inc.getDiasOtorgados(), inc.getDiasAprobados(),
+                inc.getFechaReporteTH(), inc.getFechaRadicado(), inc.getEstado(), inc.getNumeroRadicacion(),
+                inc.getIbc(), inc.getDiasPagadosIps(), inc.getValorLiquidadoIps(),
+                inc.getDiasPagadosEps(), inc.getValorLiquidadoEps(), inc.getDiasPagadosArl(),
+                cartera[0], cartera[1], cartera[2], cartera[3],
                 inc.getObservaciones(),
                 inc.getRutaArchivo() != null ? "Soporte Adjunto" : "",
-                inc.getValorPago(),
-                inc.getFechaPago(),
-                inc.getNumeroComprobantePago()
+                inc.getValorPago(), inc.getFechaPago(), inc.getNumeroComprobantePago()
         );
+    }
+
+    private ReporteDocumentoDTO mapearDocumento(Documento doc) {
+        return new ReporteDocumentoDTO(
+                doc.getId(),
+                nvl(doc.getCodigo()),
+                nvl(doc.getNombre()),
+                nvl(doc.getTipo()),
+                nvl(doc.getProceso()),
+                nvl(doc.getSede()),
+                nvl(doc.getVersion()),
+                nvl(doc.getEstado()),
+                nvl(doc.getFechaElaboracion()),
+                nvl(doc.getFechaRevision()),
+                nvl(doc.getFechaAprobacion()),
+                nvl(doc.getElabora()),
+                nvl(doc.getRevisa()),
+                nvl(doc.getAprueba()),
+                nvl(doc.getMetodoCreacion()),
+                nvl(doc.getAlcance()),
+                nvl(doc.getConfidencialidad()),
+                nvl(doc.getNormas()),
+                doc.getMesesRevision(),
+                nvl(doc.getVisualizacion())
+        );
+    }
+
+    private String nvl(String val) {
+        return val != null ? val : "";
     }
 
     private String buscarValorGlobal(Object obj, String... keywords) {
@@ -246,9 +255,7 @@ public class InformesService {
     }
 
     private String determinarSemaforo(String detalle) {
-        if (detalle == null || detalle.trim().isEmpty() || detalle.equalsIgnoreCase("Sin registro")) {
-            return "ROJO";
-        }
+        if (detalle == null || detalle.trim().isEmpty() || detalle.equalsIgnoreCase("Sin registro")) return "ROJO";
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(detalle);
@@ -260,27 +267,20 @@ public class InformesService {
                     int dosisAplicadas = 0;
                     if (vac.has("fechas") && vac.get("fechas").isArray()) {
                         for (com.fasterxml.jackson.databind.JsonNode f : vac.get("fechas")) {
-                            if (f != null && !f.asText().trim().isEmpty()) {
-                                dosisAplicadas++;
-                            }
+                            if (f != null && !f.asText().trim().isEmpty()) dosisAplicadas++;
                         }
                     }
-                    if (dosisAplicadas < dosisReq) {
-                        pendiente = true;
-                    }
+                    if (dosisAplicadas < dosisReq) pendiente = true;
                     boolean reqRefuerzo = vac.has("requiereRefuerzo") && vac.get("requiereRefuerzo").asBoolean();
                     String fechaRef = vac.has("fechaRefuerzo") ? vac.get("fechaRefuerzo").asText() : "";
-                    if (reqRefuerzo && (fechaRef == null || fechaRef.trim().isEmpty())) {
-                        pendiente = true;
-                    }
+                    if (reqRefuerzo && (fechaRef == null || fechaRef.trim().isEmpty())) pendiente = true;
                 }
                 return pendiente ? "AMARILLO" : "VERDE";
             }
         } catch (Exception e) {
-            // Fallback al análisis de texto si no es JSON válido
-            String detLower = detalle.toLowerCase();
-            if (detLower.contains("vencid")) return "ROJO";
-            if (detLower.contains("pendiente") || detLower.contains("incompleto")) return "AMARILLO";
+            String d = detalle.toLowerCase();
+            if (d.contains("vencid")) return "ROJO";
+            if (d.contains("pendiente") || d.contains("incompleto")) return "AMARILLO";
         }
         return "VERDE";
     }

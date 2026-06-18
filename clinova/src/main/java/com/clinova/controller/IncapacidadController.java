@@ -3,6 +3,7 @@ package com.clinova.controller;
 import com.clinova.dto.IncapacidadDTO;
 import com.clinova.service.IncapacidadService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -15,12 +16,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/incapacidades")
 @RequiredArgsConstructor
 public class IncapacidadController {
 
     private final IncapacidadService incapacidadService;
+
+    private static final Path UPLOAD_ROOT = Paths.get("uploads").toAbsolutePath().normalize();
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<IncapacidadDTO> crearOActualizar(
@@ -49,10 +53,17 @@ public class IncapacidadController {
     @GetMapping("/descargar-archivo")
     public ResponseEntity<Resource> descargarArchivo(@RequestParam("ruta") String rutaArchivo) {
         try {
-            Path file = Paths.get(rutaArchivo);
-            Resource resource = new UrlResource(file.toUri());
+            // Seguridad: normalizar y verificar que la ruta esté dentro del directorio permitido
+            Path filePath = UPLOAD_ROOT.resolve(rutaArchivo).normalize();
 
-            if (resource.exists() || resource.isReadable()) {
+            if (!filePath.startsWith(UPLOAD_ROOT)) {
+                log.warn("Intento de path traversal detectado: {}", rutaArchivo);
+                throw new RuntimeException("Ruta de archivo no permitida");
+            }
+
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
                 return ResponseEntity.ok()
                         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
                         .body(resource);
@@ -60,7 +71,8 @@ public class IncapacidadController {
                 throw new RuntimeException("No se pudo leer el archivo");
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error al descargar el archivo", e);
+            log.error("Error al descargar incapacidad archivo={}: {}", rutaArchivo, e.getMessage());
+            throw new RuntimeException("Error al descargar el archivo");
         }
     }
 }

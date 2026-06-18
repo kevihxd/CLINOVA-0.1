@@ -28,4 +28,19 @@ public class UsuarioRequestDTO {
         private String lugarNacimiento;
         private String correoElectronico;
         private String perfilVacunacion;
+
+        private String arl;
+        private String eps;
+        private String afp;
+        private String cajaCompensacion;
+        private String fechaIngreso;
+        private String tipoContrato;
+        private Long sedeId;
+        private Double salario;
+        private String subsidioTransporte;
+        private String estado;
+        private String fechaRetiro;
+        private String pesvFecha;
+        private String motivoRetiro;
+        private Long responsableEvaluacionId;
 }

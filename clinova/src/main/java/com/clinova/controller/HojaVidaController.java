@@ -8,6 +8,7 @@ import com.clinova.service.HojaVidaHistorialService;
 import com.clinova.repository.HojaVidaRepository;
 import com.clinova.entity.Usuario;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/hojas-vida")
 @RequiredArgsConstructor
@@ -35,6 +37,7 @@ public class HojaVidaController {
         try {
             return ResponseEntity.ok(hojaVidaService.obtenerHojaVidaPorId(id));
         } catch (Exception e) {
+            log.error("Error en obtenerPorId [id={}]: {}", id, e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }
@@ -44,6 +47,7 @@ public class HojaVidaController {
         try {
             return ResponseEntity.ok(hojaVidaService.obtenerHojaVidaPorCedula(cedula));
         } catch (Exception e) {
+            log.error("Error en obtenerPorCedula [cedula={}]: {}", cedula, e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }
@@ -100,6 +104,7 @@ public class HojaVidaController {
             historialService.registrarHistorial(id, "MODIFICACION", "Foto de perfil actualizada", usuario);
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {
+            log.error("Error en subirFoto [id={}]: {}", id, e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

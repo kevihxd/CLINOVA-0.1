@@ -37,6 +37,8 @@ public class CargoController {
         Long id;
         String nombre;
         String descripcion;
+        String modulo;
+        String accion;
     }
 
     private CargoDTO toDTO(Cargo c) {
@@ -115,6 +117,8 @@ public class CargoController {
                     dto.setId(p.getId());
                     dto.setNombre(p.getNombre());
                     dto.setDescripcion(p.getDescripcion());
+                    dto.setModulo(p.getModulo());
+                    dto.setAccion(p.getAccion());
                     return dto;
                 }).collect(Collectors.toList())
         );

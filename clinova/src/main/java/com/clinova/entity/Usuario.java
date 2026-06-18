@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,6 +30,7 @@ public class Usuario implements UserDetails {
     private String username;
 
     @Column(nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -38,21 +40,23 @@ public class Usuario implements UserDetails {
     @JoinColumn(name = "persona_id", referencedColumnName = "id", nullable = true)
     private Persona persona;
 
-    // --- NUEVO: Relación con el Cargo ---
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cargo_id", nullable = true)
     private Cargo cargo;
+
+    @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JsonIgnoreProperties({"usuario"})
+    private HojaVida hojaVida;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         List<GrantedAuthority> authorities = new ArrayList<>();
 
-        // Mantenemos el rol original por compatibilidad
+
         if (rol != null) {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + rol.name()));
         }
 
-        // Cargamos los permisos atómicos directamente desde el Cargo del usuario
         if (cargo != null && cargo.getPermisos() != null) {
             for (Permiso permiso : cargo.getPermisos()) {
                 authorities.add(new SimpleGrantedAuthority(permiso.getNombre()));
@@ -80,5 +84,69 @@ public class Usuario implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    public String getArl() {
+        return hojaVida != null ? hojaVida.getArl() : null;
+    }
+
+    public String getEps() {
+        return hojaVida != null ? hojaVida.getEps() : null;
+    }
+
+    public String getAfp() {
+        return hojaVida != null ? hojaVida.getAfp() : null;
+    }
+
+    public String getCajaCompensacion() {
+        return hojaVida != null ? hojaVida.getCajaCompensacion() : null;
+    }
+
+    public String getFechaIngreso() {
+        return (hojaVida != null && hojaVida.getFechaIngreso() != null) ? hojaVida.getFechaIngreso().toString() : null;
+    }
+
+    public String getTipoContrato() {
+        return hojaVida != null ? hojaVida.getTipoContrato() : null;
+    }
+
+    public Double getSalario() {
+        return hojaVida != null ? hojaVida.getSalario() : null;
+    }
+
+    public String getSubsidioTransporte() {
+        return hojaVida != null ? hojaVida.getSubsidioTransporte() : null;
+    }
+
+    public String getEstado() {
+        return hojaVida != null ? hojaVida.getEstado() : null;
+    }
+
+    public String getFechaRetiro() {
+        return (hojaVida != null && hojaVida.getFechaRetiro() != null) ? hojaVida.getFechaRetiro().toString() : null;
+    }
+
+    public String getPesvFecha() {
+        return hojaVida != null ? hojaVida.getPesv() : null;
+    }
+
+    public String getMotivoRetiro() {
+        return hojaVida != null ? hojaVida.getMotivoRetiro() : null;
+    }
+
+    public Sede getSede() {
+        if (hojaVida != null && hojaVida.getSedes() != null && !hojaVida.getSedes().isEmpty()) {
+            return hojaVida.getSedes().get(0);
+        }
+        return null;
+    }
+
+    public Long getSedeId() {
+        Sede s = getSede();
+        return s != null ? s.getId() : null;
+    }
+
+    public Long getResponsableEvaluacionId() {
+        return hojaVida != null ? hojaVida.getResponsableEvaluacionId() : null;
     }
 }

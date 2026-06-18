@@ -19,6 +19,9 @@ public class HojaVida {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "kawak_id", unique = true)
+    private Long kawakId;
+
     @Column(nullable = false, length = 100)
     private String nombres;
 
