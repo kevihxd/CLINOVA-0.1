@@ -13,8 +13,12 @@ public class CursoAsignado {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "usuario_id", nullable = false)
+    @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hoja_vida_id", nullable = true)
+    private HojaVida hojaVida;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "curso_maestro_id", nullable = false)

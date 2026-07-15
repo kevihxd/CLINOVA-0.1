@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface SoporteRepository extends JpaRepository<Soporte, Long> {
     List<Soporte> findByHojaVidaId(Long hojaVidaId);
+    List<Soporte> findByHojaVidaIdOrderByIdDesc(Long hojaVidaId);
 }

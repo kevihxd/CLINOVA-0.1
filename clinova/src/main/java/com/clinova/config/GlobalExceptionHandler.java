@@ -16,9 +16,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
-        log.error("Error de negocio: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("status", "ERROR", "message", ex.getMessage()));
+        log.error("Error de negocio: {}", ex.getMessage(), ex);
+        String msg = ex.getMessage() != null ? ex.getMessage() : "Error interno (sin mensaje)";
+        Map<String, String> body = new HashMap<>();
+        body.put("status", "ERROR");
+        body.put("message", msg);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

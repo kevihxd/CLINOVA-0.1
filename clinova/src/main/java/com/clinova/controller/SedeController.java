@@ -33,7 +33,7 @@ public class SedeController {
                 log.warn("No se pudieron insertar sedes iniciales (puede que ya existan): {}", seed.getMessage());
             }
 
-            List<SedeDTO> sedesDTO = sedeRepository.findAll().stream()
+            List<SedeDTO> sedesDTO = sedeRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")).stream()
                     .map(sede -> new SedeDTO(sede.getId(), sede.getNombre()))
                     .toList();
             return ResponseEntity.ok(sedesDTO);

@@ -11,8 +11,13 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
+import org.springframework.security.crypto.password.MessageDigestPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
@@ -23,7 +28,7 @@ public class ConfiguracionAplicacion {
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> usuarioRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado en la base de datos"));
     }
 
     @Bean
@@ -40,12 +45,23 @@ public class ConfiguracionAplicacion {
     }
 
     @Bean
+    @SuppressWarnings("deprecation")
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        String idForEncode = "bcrypt";
+        Map<String, PasswordEncoder> encoders = new HashMap<>();
+
+        encoders.put(idForEncode, new BCryptPasswordEncoder());
+        encoders.put("MD5", new MessageDigestPasswordEncoder("MD5"));
+        encoders.put("SHA-1", new MessageDigestPasswordEncoder("SHA-1"));
+
+        DelegatingPasswordEncoder passwordEncoder = new DelegatingPasswordEncoder(idForEncode, encoders);
+        passwordEncoder.setDefaultPasswordEncoderForMatches(new BCryptPasswordEncoder());
+
+        return passwordEncoder;
     }
 
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
-}
+}

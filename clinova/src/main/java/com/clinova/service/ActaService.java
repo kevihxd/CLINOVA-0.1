@@ -60,8 +60,8 @@ public class ActaService {
 
     @Transactional(readOnly = true)
     public List<ActaDTO> obtenerTodas() {
-        return actaRepository.findAll().stream()
-                .map(this::mapearADto)
+        return actaRepository.findAllResumen().stream()
+                .map(this::mapearAResumenDto)
                 .collect(Collectors.toList());
     }
 
@@ -154,6 +154,34 @@ public class ActaService {
     private Acta buscarActaPorId(Long id) {
         return actaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Acta no encontrada con ID: " + id));
+    }
+
+    private ActaDTO mapearAResumenDto(Acta acta) {
+        return new ActaDTO(
+                acta.getId(),
+                acta.getTitulo(),
+                null, // omit contenidoHtml for list views to save memory
+                acta.getEstado(),
+                acta.getTipo(),
+                acta.getResponsable(),
+                acta.getFecha(),
+                acta.getProceso(),
+                acta.getSede(),
+                acta.getFechaInicio(),
+                acta.getHoraInicio(),
+                acta.getFechaFin(),
+                acta.getHoraFin(),
+                acta.getLugar(),
+                acta.getEnlaceVirtual(),
+                acta.getQuienCita(),
+                acta.getConfidencial(),
+                acta.getElaborador(),
+                acta.getArea(),
+                acta.getPalabrasClave(),
+                acta.getCompromisosAprobacion(),
+                acta.getConvertirDocumento(),
+                acta.getRequiereAprobacionActa()
+        );
     }
 
     private ActaDTO mapearADto(Acta acta) {

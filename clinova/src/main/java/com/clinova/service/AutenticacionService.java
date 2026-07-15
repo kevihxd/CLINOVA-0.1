@@ -58,6 +58,7 @@ public class AutenticacionService {
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("permisos", permisos);
         extraClaims.put("role", usuario.getRol() != null ? usuario.getRol().name() : "");
+        extraClaims.put("requiereCambioPassword", usuario.getRequiereCambioPassword() != null ? usuario.getRequiereCambioPassword() : true);
 
         return AutenticacionResponseDTO.builder()
                 .token(jwtService.generarToken(extraClaims, usuario))
@@ -86,6 +87,7 @@ public class AutenticacionService {
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("permisos", permisos);
         extraClaims.put("role", usuario.getRol() != null ? usuario.getRol().name() : "");
+        extraClaims.put("requiereCambioPassword", usuario.getRequiereCambioPassword() != null ? usuario.getRequiereCambioPassword() : true);
 
         if (usuario.getCargo() != null) {
             extraClaims.put("cargo", usuario.getCargo().getNombre());

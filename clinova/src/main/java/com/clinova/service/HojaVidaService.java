@@ -190,7 +190,7 @@ public class HojaVidaService {
 
     @Transactional(readOnly = true)
     public List<HojaVidaResponseDTO> obtenerTodasLasHojasDeVida() {
-        return hojaVidaRepository.findAll().stream()
+        return hojaVidaRepository.findAllWithDetails().stream()
                 .map(this::mapearAResponseDTO)
                 .collect(Collectors.toList());
     }

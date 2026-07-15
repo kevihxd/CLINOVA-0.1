@@ -74,6 +74,12 @@ public class HojaVida {
 
     @Column(length = 100)
     private String tipoContrato;
+    
+    @Column(name = "valor_contrato")
+    private Long valorContrato;
+    
+    @Column(name = "tiempo_duracion_contrato", length = 100)
+    private String tiempoDuracionContrato;
 
     private LocalDate fechaRetiro;
 

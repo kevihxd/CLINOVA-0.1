@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface CursoAsignadoRepository extends JpaRepository<CursoAsignado, Long> {
     List<CursoAsignado> findByUsuarioId(Long usuarioId);
+    List<CursoAsignado> findByHojaVidaId(Long hojaVidaId);
 }

@@ -1,8 +1,12 @@
 package com.clinova.integration.kawak.handler;
 
 import com.clinova.entity.HojaVida;
+import com.clinova.entity.Cargo;
+import com.clinova.entity.Sede;
 import com.clinova.integration.kawak.dto.KawakEmpleadoDTO;
 import com.clinova.repository.HojaVidaRepository;
+import com.clinova.repository.CargoRepository;
+import com.clinova.repository.SedeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,6 +24,8 @@ import java.util.List;
 public class EmpleadoSyncHandler {
 
     private final HojaVidaRepository hojaVidaRepository;
+    private final CargoRepository cargoRepository;
+    private final SedeRepository sedeRepository;
 
     private static final DateTimeFormatter[] DATE_FORMATTERS = {
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
@@ -70,6 +76,26 @@ public class EmpleadoSyncHandler {
                 hv.setTelefonoContactoEmergencia(dto.telefonoContactoEmergencia());
                 hv.setFechaUltimaEdicion(LocalDateTime.now());
                 hv.setUsuarioUltimaEdicion("KAWAK_SYNC");
+
+                // Asignar Cargo desde Kawak
+                if (dto.cargo() != null && !dto.cargo().isBlank()) {
+                    Cargo cargoObj = cargoRepository.findByNombre(dto.cargo().trim()).orElseGet(() -> {
+                        Cargo c = new Cargo();
+                        c.setNombre(dto.cargo().trim());
+                        return cargoRepository.save(c);
+                    });
+                    hv.setCargos(List.of(cargoObj));
+                }
+
+                // Asignar Sede desde Kawak
+                if (dto.sede() != null && !dto.sede().isBlank()) {
+                    Sede sedeObj = sedeRepository.findByNombre(dto.sede().trim()).orElseGet(() -> {
+                        Sede s = new Sede();
+                        s.setNombre(dto.sede().trim());
+                        return sedeRepository.save(s);
+                    });
+                    hv.setSedes(List.of(sedeObj));
+                }
 
                 hojaVidaRepository.save(hv);
 

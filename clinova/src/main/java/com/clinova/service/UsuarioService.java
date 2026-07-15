@@ -21,6 +21,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -36,7 +38,36 @@ public class UsuarioService {
 
     @Transactional(readOnly = true)
     public List<Usuario> listarTodos() {
-        return usuarioRepository.findAll();
+        return usuarioRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> obtenerReporteUsuarios() {
+        List<HojaVida> hojasVida = hojaVidaRepository.findAll();
+        return hojasVida.stream().map(hv -> {
+            String nombre = (hv.getNombres() + " " + hv.getApellidos()).trim();
+            String estadoRaw = hv.getEstado() != null ? hv.getEstado().trim().toUpperCase() : "";
+            String estado = (estadoRaw.equals("ACTIVO") || estadoRaw.equals("CONTRATADO") || estadoRaw.contains("ACTIVO")) ? "ACTIVO" : "INACTIVO";
+            String sede = hv.getSedes() != null && !hv.getSedes().isEmpty() ? hv.getSedes().get(0).getNombre() : "N/A";
+            
+            String cargo = "N/A";
+            if (hv.getCargos() != null && !hv.getCargos().isEmpty()) {
+                cargo = hv.getCargos().get(0).getNombre();
+            } else if (hv.getUsuario() != null && hv.getUsuario().getCargo() != null) {
+                cargo = hv.getUsuario().getCargo().getNombre();
+            }
+            
+            String documento = hv.getCedula();
+            
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", hv.getId());
+            map.put("documento", documento != null ? documento : "");
+            map.put("nombre", nombre.replaceAll("\\s+", " "));
+            map.put("cargo", cargo != null ? cargo : "N/A");
+            map.put("sede", sede != null ? sede : "N/A");
+            map.put("estado", estado);
+            return map;
+        }).toList();
     }
 
     @Transactional(readOnly = true)
@@ -149,6 +180,17 @@ public class UsuarioService {
         hojaVidaRepository.save(hojaVida);
 
         return guardado;
+    }
+
+    @Transactional
+    public void cambiarPasswordPrimerIngreso(Long usuarioId, String nuevaPassword) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        usuario.setPassword(passwordEncoder.encode(nuevaPassword));
+        usuario.setRequiereCambioPassword(false);
+
+        usuarioRepository.save(usuario);
     }
 
     @Transactional

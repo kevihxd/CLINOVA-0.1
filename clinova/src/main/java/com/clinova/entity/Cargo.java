@@ -35,4 +35,7 @@ public class Cargo {
     )
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Set<Permiso> permisos = new HashSet<>();
+
+    public void setId(boolean b) {
+    }
 }

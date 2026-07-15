@@ -1,10 +1,40 @@
-HELP.md
+# ===== MAVEN BUILD =====
 target/
-.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+HELP.md
 
-### STS ###
+# ===== MAVEN WRAPPER =====
+.mvn/wrapper/maven-wrapper.jar
+
+# ===== UPLOADS / ARCHIVOS PESADOS =====
+# Nunca subir archivos subidos por usuarios ni CSVs de datos
+uploads/
+../uploads/
+**/uploads/
+
+# ===== CREDENCIALES Y CONFIGURACION SENSIBLE =====
+src/main/resources/application.properties
+src/main/resources/application-prod.properties
+src/main/resources/application-local.properties
+*.env
+.env
+
+# ===== IDE - IntelliJ IDEA =====
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# ===== IDE - Eclipse / STS =====
 .apt_generated
 .classpath
 .factorypath
@@ -13,13 +43,10 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+# ===== IDE - VS Code =====
+.vscode/
 
-### NetBeans ###
+# ===== IDE - NetBeans =====
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -29,5 +56,15 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+# ===== SISTEMA OPERATIVO =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== LOGS =====
+*.log
+logs/
+
+# ===== ARCHIVOS COMPILADOS JAVA =====
+*.class
+Hasher.class

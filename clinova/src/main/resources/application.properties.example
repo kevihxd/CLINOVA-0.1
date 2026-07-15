@@ -1,0 +1,44 @@
+# ===================================================
+# application.properties.example
+# Copia este archivo como "application.properties"
+# y rellena los valores con los de tu entorno.
+# NUNCA subas el archivo application.properties real a git.
+# ===================================================
+
+spring.application.name=clinova
+
+# ── Base de Datos ──────────────────────────────────
+spring.datasource.url=jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:clinova_db}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+spring.datasource.username=${DB_USER:root}
+spring.datasource.password=${DB_PASSWORD:TU_PASSWORD_AQUI}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.format_sql=false
+spring.jpa.open-in-view=false
+spring.servlet.multipart.max-file-size=15MB
+spring.servlet.multipart.max-request-size=50MB
+
+# ── Correo (Gmail) ─────────────────────────────────
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=TU_CORREO@gmail.com
+spring.mail.password=TU_APP_PASSWORD_DE_GMAIL
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+# ── JWT ────────────────────────────────────────────
+jwt.secret=${JWT_SECRET:CAMBIA_ESTE_SECRET_POR_UNO_SEGURO}
+jwt.expiration-ms=86400000
+
+# ── Kawak API ──────────────────────────────────────
+kawak.api.base-url=https://api.kawak.com.co
+kawak.api.username=TU_USUARIO_KAWAK
+kawak.api.password=TU_PASSWORD_KAWAK
+kawak.sync.cron=0 0 2 * * *
+kawak.sync.enabled=false
+
+# ── Rutas de Archivos ──────────────────────────────
+uploads.root-path=C:/TU_RUTA/uploads

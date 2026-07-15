@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -25,6 +26,11 @@ public class UsuarioController {
     @GetMapping
     public ResponseEntity<List<Usuario>> listarTodos() {
         return ResponseEntity.ok(usuarioService.listarTodos());
+    }
+
+    @GetMapping("/reportes")
+    public ResponseEntity<List<Map<String, Object>>> reporteUsuarios() {
+        return ResponseEntity.ok(usuarioService.obtenerReporteUsuarios());
     }
 
     @GetMapping("/me")
@@ -78,6 +84,16 @@ public class UsuarioController {
                 .build();
 
         return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/cambiar-password")
+    public ResponseEntity<?> cambiarPassword(@AuthenticationPrincipal Usuario principal, @RequestBody Map<String, String> payload) {
+        String nuevaPassword = payload.get("nuevaPassword");
+        if (nuevaPassword == null || nuevaPassword.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "La nueva contraseña es requerida"));
+        }
+        usuarioService.cambiarPasswordPrimerIngreso(principal.getId(), nuevaPassword);
+        return ResponseEntity.ok(Map.of("message", "Contraseña cambiada exitosamente"));
     }
 
     private String val(String primary, String fallback) {

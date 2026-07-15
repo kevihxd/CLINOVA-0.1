@@ -3,7 +3,7 @@ package com.clinova.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 @Entity
 @Table(name = "soportes")
 @Getter
@@ -35,6 +35,7 @@ public class Soporte {
     @Column(length = 50)
     private String estado;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hoja_vida_id", nullable = true)
     private HojaVida hojaVida;

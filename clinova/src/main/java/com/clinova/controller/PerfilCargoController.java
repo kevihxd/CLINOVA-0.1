@@ -28,7 +28,15 @@ public class PerfilCargoController {
     public ResponseEntity<PerfilCargo> obtenerPorCargo(@PathVariable Long cargoId) {
         return perfilCargoRepository.findByCargoId(cargoId)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    PerfilCargo vacio = new PerfilCargo();
+                    vacio.setMision("");
+                    vacio.setResponsabilidades("");
+                    vacio.setRequisitosEducacion("");
+                    vacio.setRequisitosExperiencia("");
+                    vacio.setEstado("ACTIVO");
+                    return ResponseEntity.ok(vacio);
+                });
     }
 
     @PostMapping

@@ -85,7 +85,7 @@ public class Acta {
     @Column
     private String requiereAprobacionActa;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "LONGTEXT")
     private String contenidoHtml;
 
     @Column(nullable = false)

@@ -39,7 +39,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/vacunacion/**").permitAll()
                         .requestMatchers("/api/v1/informes/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
-                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/v1/migracion/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

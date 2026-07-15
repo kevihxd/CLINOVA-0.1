@@ -66,7 +66,7 @@ public class CargoController {
     @Transactional(readOnly = true)
     public ResponseEntity<List<CargoDTO>> listarCargos() {
         return ResponseEntity.ok(
-                cargoRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList())
+                cargoRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")).stream().map(this::toDTO).collect(Collectors.toList())
         );
     }
 

@@ -35,6 +35,10 @@ public class Documento {
     private String sede;
     private String tipo;
     private String ubicacion;
+    
+    @Column(name = "ubicacion_pdf")
+    private String ubicacionPdf;
+    
     private String version;
 
     @Column(name = "fecha_elaboracion")
@@ -81,4 +85,24 @@ public class Documento {
 
     @Column(name = "extension_archivo", length = 10)
     private String extensionArchivo;
-}
+
+    // --- Campos de Estado y Cálculo ---
+    @jakarta.persistence.Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("diasFaltantes")
+    private Integer diasFaltantes;
+
+    @PostLoad
+    private void calcularDiasFaltantes() {
+        if (this.fechaAprobacion != null && !this.fechaAprobacion.trim().isEmpty() && this.mesesRevision != null) {
+            try {
+                // Suponiendo formato dd/MM/yyyy
+                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                java.time.LocalDate fechaAprob = java.time.LocalDate.parse(this.fechaAprobacion, formatter);
+                java.time.LocalDate vencimiento = fechaAprob.plusMonths(this.mesesRevision);
+                this.diasFaltantes = (int) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), vencimiento);
+            } catch (Exception e) {
+                this.diasFaltantes = null;
+            }
+        }
+    }
+}

@@ -17,8 +17,9 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
     @org.springframework.data.jpa.repository.Query("""
         SELECT new com.clinova.dto.DocumentoListDTO(
             d.id, d.kawakId, d.codigo, d.nombre, d.tipo, d.proceso, d.sede,
-            d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas
-        ) FROM Documento d
+            d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas,
+            d.rutaArchivoLocal, d.ubicacion, d.fechaAprobacion
+        ) FROM Documento d ORDER BY d.id DESC
     """)
     List<com.clinova.dto.DocumentoListDTO> findAllLightweight();
 }

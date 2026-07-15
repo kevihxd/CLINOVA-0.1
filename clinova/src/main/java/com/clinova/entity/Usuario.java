@@ -33,6 +33,10 @@ public class Usuario implements UserDetails {
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
 
+    @Column(name = "requiere_cambio_password")
+    @Builder.Default
+    private Boolean requiereCambioPassword = true;
+
     @Enumerated(EnumType.STRING)
     private Role rol;
 
@@ -45,7 +49,7 @@ public class Usuario implements UserDetails {
     private Cargo cargo;
 
     @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JsonIgnoreProperties({"usuario"})
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "usuario", "cargos", "sedes", "competencias", "soportes", "documentos", "historiales"})
     private HojaVida hojaVida;
 
     @Override
@@ -134,6 +138,7 @@ public class Usuario implements UserDetails {
         return hojaVida != null ? hojaVida.getMotivoRetiro() : null;
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public Sede getSede() {
         if (hojaVida != null && hojaVida.getSedes() != null && !hojaVida.getSedes().isEmpty()) {
             return hojaVida.getSedes().get(0);
@@ -141,6 +146,7 @@ public class Usuario implements UserDetails {
         return null;
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public Long getSedeId() {
         Sede s = getSede();
         return s != null ? s.getId() : null;

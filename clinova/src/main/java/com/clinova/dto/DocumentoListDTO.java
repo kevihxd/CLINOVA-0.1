@@ -17,6 +17,23 @@ public record DocumentoListDTO(
         String version,
         Integer mesesRevision,
         String metodoCreacion,
-        String normas
+        String normas,
+        String rutaArchivoLocal,
+        String ubicacion,
+        String fechaAprobacion
 ) {
+    @com.fasterxml.jackson.annotation.JsonProperty("diasFaltantes")
+    public Integer getDiasFaltantes() {
+        if (fechaAprobacion != null && !fechaAprobacion.trim().isEmpty() && mesesRevision != null) {
+            try {
+                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                java.time.LocalDate fechaAprob = java.time.LocalDate.parse(fechaAprobacion, formatter);
+                java.time.LocalDate vencimiento = fechaAprob.plusMonths(mesesRevision);
+                return (int) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), vencimiento);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
 }
