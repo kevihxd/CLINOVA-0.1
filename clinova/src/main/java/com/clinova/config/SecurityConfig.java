@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/uploads/**", "/api/uploads/**", "/api/v1/uploads/**").permitAll()
                         .requestMatchers("/api/v1/sedes", "/api/v1/sedes/**").permitAll()
                         .requestMatchers("/api/v1/vacunacion/**").permitAll()
                         .requestMatchers("/api/v1/informes/**").permitAll()
@@ -56,9 +57,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        
+        String envOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        if (envOrigins != null && !envOrigins.trim().isEmpty()) {
+            configuration.setAllowedOriginPatterns(Arrays.asList(envOrigins.split(",")));
+        } else {
+            configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        }
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setExposedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

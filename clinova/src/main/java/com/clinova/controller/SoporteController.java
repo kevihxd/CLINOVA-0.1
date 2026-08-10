@@ -33,7 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/soportes")
+@RequestMapping({"/api/v1/soportes", "/api/soportes"})
 @RequiredArgsConstructor
 public class SoporteController {
 
@@ -147,6 +147,76 @@ public class SoporteController {
         }
     }
 
+    /** Actualiza el tipoDocumento / categoría de un soporte (acepta vía query param o body) */
+    @PutMapping({"/{id}/categoria", "/{id}/tipo"})
+    public ResponseEntity<?> cambiarCategoria(
+            @PathVariable Long id,
+            @RequestParam(name = "tipoDocumento", required = false) String tipoDocumentoParam,
+            @RequestBody(required = false) Map<String, String> body,
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Soporte soporte = soporteRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+
+            String nuevaCategoria = tipoDocumentoParam;
+
+            if ((nuevaCategoria == null || nuevaCategoria.trim().isEmpty()) && body != null) {
+                nuevaCategoria = body.get("tipoDocumento");
+                if (nuevaCategoria == null || nuevaCategoria.trim().isEmpty()) {
+                    nuevaCategoria = body.get("categoria");
+                }
+            }
+
+            if (nuevaCategoria == null || nuevaCategoria.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", "Debe especificar la nueva categoría o tipoDocumento"));
+            }
+
+            soporte.setTipoDocumento(nuevaCategoria.trim());
+            Soporte actualizado = soporteRepository.save(soporte);
+
+            log.info("Tipo/Categoría de soporte actualizada [id={}, nuevaCategoria={}]", id, nuevaCategoria);
+            return ResponseEntity.ok(Map.of("status", "OK", "message", "Categoría actualizada correctamente", "data", actualizado));
+        } catch (Exception e) {
+            log.error("Error al actualizar categoría de soporte [id={}]: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+
+    /** Actualiza el nombreArchivo de un soporte (acepta vía query param o body) */
+    @PutMapping("/{id}/nombre")
+    public ResponseEntity<?> cambiarNombre(
+            @PathVariable Long id,
+            @RequestParam(name = "nombreArchivo", required = false) String nombreParam,
+            @RequestBody(required = false) Map<String, String> body,
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Soporte soporte = soporteRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+
+            String nuevoNombre = nombreParam;
+
+            if ((nuevoNombre == null || nuevoNombre.trim().isEmpty()) && body != null) {
+                nuevoNombre = body.get("nombreArchivo");
+                if (nuevoNombre == null || nuevoNombre.trim().isEmpty()) {
+                    nuevoNombre = body.get("nombre");
+                }
+            }
+
+            if (nuevoNombre == null || nuevoNombre.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", "Debe especificar el nuevo nombre del archivo"));
+            }
+
+            soporte.setNombreArchivo(nuevoNombre.trim());
+            Soporte actualizado = soporteRepository.save(soporte);
+
+            log.info("Nombre de soporte actualizado [id={}, nuevoNombre={}]", id, nuevoNombre);
+            return ResponseEntity.ok(Map.of("status", "OK", "message", "Nombre actualizado correctamente", "data", actualizado));
+        } catch (Exception e) {
+            log.error("Error al actualizar nombre de soporte [id={}]: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+
     /** Elimina un soporte por ID (y su archivo físico del disco si existe) */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
@@ -196,6 +266,8 @@ public class SoporteController {
         // 3. Solo el nombre del archivo en carpetas conocidas
         String nombreSolo = Paths.get(rutaArchivo).getFileName().toString();
         String[] carpetas = {
+            "files/thu_talento/hdv_documentos",
+            "files/thu_talento/hdv_fotos",
             "DATA/files/thu_talento/hdv_documentos",
             "DATA/files/thu_talento/hdv_fotos",
             "soportes",
