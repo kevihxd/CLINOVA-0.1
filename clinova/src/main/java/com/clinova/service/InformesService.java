@@ -21,9 +21,24 @@ public class InformesService {
     private final CursoAsignadoRepository cursoAsignadoRepository;
     private final DocumentoRepository documentoRepository;
 
+    private boolean isActivo(HojaVida hv) {
+        if (hv == null) return false;
+        String e = hv.getEstado();
+        if (e == null || e.trim().isEmpty()) return true;
+        String upper = e.trim().toUpperCase();
+        return !upper.contains("INACTIVO") && !upper.contains("RETIRO") && !upper.contains("DESCARTA");
+    }
+
+    private boolean isActivoUsuario(Usuario u) {
+        if (u == null) return false;
+        HojaVida hv = hojaVidaRepository.findByUsuario_Id(u.getId()).orElse(null);
+        return isActivo(hv);
+    }
+
     @Transactional(readOnly = true)
     public List<ReporteVacunacionDTO> generarReporteVacunacion() {
         return hojaVidaRepository.findAll().stream()
+                .filter(this::isActivo)
                 .map(this::mapearVacunacion)
                 .collect(Collectors.toList());
     }
@@ -31,6 +46,7 @@ public class InformesService {
     @Transactional(readOnly = true)
     public List<ReporteTalentoHumanoDTO> generarReporteTalentoHumano() {
         return hojaVidaRepository.findAll().stream()
+                .filter(this::isActivo)
                 .map(this::mapearTalentoHumano)
                 .collect(Collectors.toList());
     }
@@ -38,6 +54,7 @@ public class InformesService {
     @Transactional(readOnly = true)
     public List<ReporteIncapacidadDTO> generarReporteIncapacidades() {
         return incapacidadRepository.findAll().stream()
+                .filter(inc -> isActivoUsuario(inc.getUsuario()))
                 .map(this::mapearIncapacidad)
                 .collect(Collectors.toList());
     }
@@ -45,6 +62,7 @@ public class InformesService {
     @Transactional(readOnly = true)
     public List<ReporteCursoDTO> generarReporteCursos() {
         return cursoAsignadoRepository.findAll().stream()
+                .filter(ca -> isActivoUsuario(ca.getUsuario()))
                 .map(this::mapearCurso)
                 .collect(Collectors.toList());
     }

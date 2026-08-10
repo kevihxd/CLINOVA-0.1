@@ -17,6 +17,9 @@ public class DocumentoHistorial {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "version")
+    private String version;
+
     @Column(nullable = false)
     private String accion;
 
@@ -34,6 +37,8 @@ public class DocumentoHistorial {
 
     @PrePersist
     protected void onCreate() {
-        this.fecha = LocalDateTime.now();
+        if (this.fecha == null) {
+            this.fecha = LocalDateTime.now();
+        }
     }
 }

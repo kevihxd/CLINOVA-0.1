@@ -13,8 +13,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String envOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        String[] origins = (envOrigins != null && !envOrigins.trim().isEmpty())
+                ? envOrigins.split(",")
+                : new String[]{"*"};
+
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173")
+                .allowedOriginPatterns(origins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true);
@@ -23,15 +28,15 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
 
-        String dirName = "uploads";
-        Path uploadDir = Paths.get(dirName);
-        String uploadPath = uploadDir.toFile().getAbsolutePath();
-
-        if (!uploadPath.endsWith("/")) {
-            uploadPath += "/";
+        Path uploadDir = Paths.get("uploads");
+        String uriLocation = uploadDir.toFile().toURI().toString();
+        if (!uriLocation.endsWith("/")) {
+            uriLocation += "/";
         }
 
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:/" + uploadPath);
+                .addResourceLocations(uriLocation);
+        registry.addResourceHandler("/api/uploads/**")
+                .addResourceLocations(uriLocation);
     }
 }

@@ -49,6 +49,7 @@ public class DocumentoHistorialService {
                 .map(log -> new DocumentoHistorialDTO(
                         log.getId(),
                         log.getDocumentoId(),
+                        log.getVersion(),
                         log.getAccion(),
                         log.getDescripcion(),
                         log.getUsuario(),

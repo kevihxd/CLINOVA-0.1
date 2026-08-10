@@ -29,7 +29,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/documentos")
+@RequestMapping({"/api/v1/documentos", "/api/documentos"})
 @RequiredArgsConstructor
 public class DocumentoController {
 
@@ -94,6 +94,9 @@ public class DocumentoController {
                 String nombreArchivo = UUID.randomUUID() + "_" + archivo.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
                 Files.copy(archivo.getInputStream(), this.root.resolve("documentos").resolve(nombreArchivo));
                 documento.setUbicacion(nombreArchivo);
+                if (documento.getRutaArchivoLocal() == null || documento.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(documento.getRutaArchivoLocal())) {
+                    documento.setRutaArchivoLocal(nombreArchivo);
+                }
             } else if (documento.getUbicacion() == null || documento.getUbicacion().isEmpty()) {
                 documento.setUbicacion("SIN_ARCHIVO");
             }
@@ -102,6 +105,9 @@ public class DocumentoController {
                 String nombrePdf = UUID.randomUUID() + "_" + archivoPdf.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
                 Files.copy(archivoPdf.getInputStream(), this.root.resolve("documentos").resolve(nombrePdf));
                 documento.setUbicacionPdf(nombrePdf);
+                if (documento.getRutaArchivoLocal() == null || documento.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(documento.getRutaArchivoLocal())) {
+                    documento.setRutaArchivoLocal(nombrePdf);
+                }
             }
 
             if (documento.getVersion() == null || documento.getVersion().trim().isEmpty()) {
@@ -185,19 +191,22 @@ public class DocumentoController {
             @RequestParam(value = "tipo", required = false) String tipo,
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElseThrow();
+            Documento doc = repository.findById(id).orElse(null);
+            if (doc == null) {
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento con ID " + id + " no existe", null));
+            }
 
             String archivoReal = null;
             
             // Si el cliente pide la vista previa en PDF, intentamos buscar primero el archivo PDF
             if ("pdf".equalsIgnoreCase(tipo)) {
                 archivoReal = doc.getUbicacionPdf();
-                if (archivoReal == null || archivoReal.trim().isEmpty() || archivoReal.equals("SIN_ARCHIVO")) {
+                if (isInvalidPath(archivoReal)) {
                     String baseFile = doc.getRutaArchivoLocal();
-                    if (baseFile == null || baseFile.trim().isEmpty() || baseFile.equals("SIN_ARCHIVO")) {
+                    if (isInvalidPath(baseFile)) {
                         baseFile = doc.getUbicacion();
                     }
-                    if (baseFile != null && !baseFile.equals("SIN_ARCHIVO")) {
+                    if (!isInvalidPath(baseFile)) {
                         int dotIndex = baseFile.lastIndexOf('.');
                         if (dotIndex > 0) {
                             String guessPdf = baseFile.substring(0, dotIndex) + ".pdf";
@@ -216,12 +225,12 @@ public class DocumentoController {
                 archivoReal = doc.getRutaArchivoLocal();
             }
 
-            if (archivoReal == null || archivoReal.trim().isEmpty() || archivoReal.equals("SIN_ARCHIVO")) {
+            if (isInvalidPath(archivoReal)) {
                 archivoReal = doc.getUbicacion();
             }
 
-            if (archivoReal == null || archivoReal.trim().isEmpty() || archivoReal.equals("SIN_ARCHIVO")) {
-                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento no tiene archivo físico", null));
+            if (isInvalidPath(archivoReal)) {
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento no tiene archivo físico registrado", null));
             }
 
             Path file = buscarArchivoFisico(archivoReal, "documentos");
@@ -229,7 +238,7 @@ public class DocumentoController {
             if (file != null && Files.exists(file) && Files.isReadable(file)) {
                 Resource resource = new UrlResource(file.toUri());
                 String contentType = "application/octet-stream";
-                String filename = archivoReal.toLowerCase();
+                String filename = file.getFileName().toString().toLowerCase();
 
                 if (filename.endsWith(".pdf")) contentType = MediaType.APPLICATION_PDF_VALUE;
                 else if (filename.endsWith(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -238,14 +247,14 @@ public class DocumentoController {
                 historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
 
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + archivoReal + "\"")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFileName().toString() + "\"")
                         .header(HttpHeaders.CONTENT_TYPE, contentType)
                         .body(resource);
             } else {
-                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El archivo no se encuentra en el servidor", null));
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El archivo físico '" + archivoReal + "' no se encuentra en el servidor", null));
             }
         } catch (Exception e) {
-            log.error("Error al descargar documento: {}", e.getMessage(), e);
+            log.error("Error al descargar documento id {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(500).body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
     }
@@ -262,6 +271,15 @@ public class DocumentoController {
     }
 
     private Path buscarArchivoFisico(String nombreArchivo, String subcarpeta) {
+        if (nombreArchivo == null || nombreArchivo.trim().isEmpty()) return null;
+
+        try {
+            Path directPath = Paths.get(nombreArchivo);
+            if (Files.exists(directPath) && Files.isRegularFile(directPath)) {
+                return directPath;
+            }
+        } catch (Exception ignored) {}
+
         Path fromService = fileLocator.buscarArchivo(nombreArchivo);
         if (fromService != null) return fromService;
 
@@ -271,7 +289,7 @@ public class DocumentoController {
         path = root.resolve(nombreArchivo).normalize();
         if (Files.exists(path)) return path;
 
-        String[] carpetasExtendidas = {"soportes/otros_soportes", "soportes/sin_clasificar", "certificados", "fotos", "soportes"};
+        String[] carpetasExtendidas = {"documentos", "soportes/otros_soportes", "soportes/sin_clasificar", "certificados", "fotos", "soportes"};
         for (String dir : carpetasExtendidas) {
             path = root.resolve(dir).resolve(nombreArchivo).normalize();
             if (Files.exists(path)) return path;
@@ -283,16 +301,51 @@ public class DocumentoController {
     private String generarCodigo(String proceso, String tipo) {
         String abrevProceso = abreviarProceso(proceso);
         String abrevTipo = abreviarTipo(tipo);
-        long siguiente = repository.countByCodigoStartingWith(abrevProceso + "-" + abrevTipo + "-") + 1;
-        return abrevProceso + "-" + abrevTipo + "-" + siguiente;
+        String prefix = abrevProceso + "-" + abrevTipo + "-";
+        
+        List<String> codigosExistentes = repository.findCodigosByPrefix(prefix);
+        long maxNum = 0;
+        for (String c : codigosExistentes) {
+            if (c != null) {
+                int lastDash = c.lastIndexOf('-');
+                if (lastDash != -1 && lastDash < c.length() - 1) {
+                    try {
+                        long num = Long.parseLong(c.substring(lastDash + 1).trim());
+                        if (num > maxNum) maxNum = num;
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        return prefix + (maxNum + 1);
     }
 
     private String abreviarProceso(String proceso) {
         if (proceso == null || proceso.isBlank()) return "DOC";
-        String[] palabras = proceso.trim().toUpperCase().split("[\\s]+");
+        String pUpper = proceso.trim().toUpperCase();
+        if (pUpper.contains("TALENTO HUMANO")) return "PTH";
+        if (pUpper.contains("SEGURIDAD Y SALUD")) return "PSST";
+        if (pUpper.contains("SEGURIDAD DEL PACIENTE")) return "PSP";
+        if (pUpper.contains("SIAU")) return "PSIAU";
+        if (pUpper.contains("CALIDAD")) return "PGC";
+        if (pUpper.contains("FINANCIERA")) return "PGF";
+        if (pUpper.contains("INFRAESTRUCTURA")) return "PGI";
+        if (pUpper.contains("COMERCIAL")) return "PGCM";
+        if (pUpper.contains("ESTRATÉGICA") || pUpper.contains("ESTRATEGI")) return "PGE";
+        if (pUpper.contains("HUMANIZACIÓN") || pUpper.contains("HUMANIZACI")) return "PGH";
+        if (pUpper.contains("SALUD PÚBLICA") || pUpper.contains("SALUD PUBLICA")) return "PSPU";
+        if (pUpper.contains("CONSULTA EXTERNA")) return "PGCE";
+        if (pUpper.contains("DOMICILIARIO") || pUpper.contains("INTERNACIÓN")) return "PGID";
+        if (pUpper.contains("APOYO DIAGNOSTICO")) return "PGAD";
+        if (pUpper.contains("TECNOLOGÍA") || pUpper.contains("TECNOLOGIA") || pUpper.contains("SISTEMAS")) return "PTSI";
+        if (pUpper.contains("COMPRAS")) return "PGCO";
+        if (pUpper.contains("ARCHIVO")) return "PGA";
+        if (pUpper.contains("COMUNICACIONES")) return "PGCOM";
+
+        String[] palabras = pUpper.split("[\\s]+");
         StringBuilder sb = new StringBuilder();
+        if (!pUpper.startsWith("P")) sb.append("P");
         for (String p : palabras) {
-            if (p.equalsIgnoreCase("DE") || p.equalsIgnoreCase("Y") || p.equalsIgnoreCase("E")) continue;
+            if (p.equalsIgnoreCase("DE") || p.equalsIgnoreCase("Y") || p.equalsIgnoreCase("E") || p.equalsIgnoreCase("EN") || p.equalsIgnoreCase("DEL")) continue;
             if (!p.isEmpty()) sb.append(p.charAt(0));
         }
         String siglas = sb.toString();
@@ -320,5 +373,11 @@ public class DocumentoController {
             case "REGISTRO"         -> "RG";
             default -> tipo.trim().toUpperCase().replaceAll("[AEIOUÁÉÍÓÚ ]", "").substring(0, Math.min(3, tipo.trim().replaceAll("[AEIOUÁÉÍÓÚ ]", "").length()));
         };
+    }
+
+    private boolean isInvalidPath(String path) {
+        if (path == null || path.trim().isEmpty()) return true;
+        String p = path.trim().toUpperCase();
+        return p.equals("SIN_ARCHIVO") || p.equals("KAWAK") || p.equals("NONE") || p.equals("NULL");
     }
 }

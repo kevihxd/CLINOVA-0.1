@@ -23,24 +23,54 @@ public class FileLocatorService {
 
     @PostConstruct
     public void initIndex() {
-        rootUploads = Paths.get(uploadsRootPath).toAbsolutePath().normalize();
-        log.info("Iniciando escaneo recursivo de archivos en: {}", rootUploads);
+        Path candidate = Paths.get(uploadsRootPath).toAbsolutePath().normalize();
+        if (!Files.exists(candidate)) {
+            log.info("La ruta configurada '{}' no existe. Buscando ubicaciones alternativas de uploads...", candidate);
+            
+            // Fallback 1: Desktop/Clinova/uploads en la carpeta del usuario actual
+            Path userHomeDesktop = Paths.get(System.getProperty("user.home"), "Desktop", "Clinova", "uploads");
+            if (Files.exists(userHomeDesktop)) {
+                candidate = userHomeDesktop;
+            } else {
+                // Fallback 2: ./uploads en el directorio del proyecto
+                Path localUploads = Paths.get("uploads").toAbsolutePath().normalize();
+                if (Files.exists(localUploads)) {
+                    candidate = localUploads;
+                } else {
+                    // Fallback 3: ../uploads
+                    Path parentUploads = Paths.get("..", "uploads").toAbsolutePath().normalize();
+                    if (Files.exists(parentUploads)) {
+                        candidate = parentUploads;
+                    }
+                }
+            }
+        }
+        
+        rootUploads = candidate;
+        log.info("Iniciando escaneo rápido de archivos en: {}", rootUploads);
 
         if (!Files.exists(rootUploads)) {
-            log.warn("El directorio base de uploads no existe: {}", rootUploads);
+            log.warn("El directorio base de uploads no fue encontrado en ninguna ubicación: {}", rootUploads);
             return;
         }
 
         try {
             Files.walkFileTree(rootUploads, new SimpleFileVisitor<Path>() {
                 @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    String dirName = dir.getFileName().toString().toLowerCase();
+                    if ("hdv_documentos".equals(dirName) || "hdv_fotos".equals(dirName)) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                     if (!Files.isDirectory(file)) {
-                        // Indexar por nombre de archivo exacto (minúsculas)
                         String fileName = file.getFileName().toString().toLowerCase();
                         fileIndex.putIfAbsent(fileName, file);
 
-                        // Indexar también por ruta relativa al root de uploads
                         Path relativeToUploads = rootUploads.relativize(file);
                         String relativePath = relativeToUploads.toString().replace("\\", "/").toLowerCase();
                         fileIndex.putIfAbsent(relativePath, file);
@@ -50,11 +80,10 @@ public class FileLocatorService {
 
                 @Override
                 public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                    log.warn("No se pudo leer el archivo: {}", file);
                     return FileVisitResult.CONTINUE;
                 }
             });
-            log.info("Escaneo completado. Archivos indexados en memoria: {}", fileIndex.size());
+            log.info("Escaneo completado. Archivos de documentos indexados en memoria: {}", fileIndex.size());
         } catch (IOException e) {
             log.error("Error al indexar archivos físicos: {}", e.getMessage(), e);
         }

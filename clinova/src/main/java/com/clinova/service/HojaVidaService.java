@@ -52,6 +52,19 @@ public class HojaVidaService {
     @Transactional
     public HojaVidaResponseDTO crearHojaVida(HojaVidaRequestDTO request) {
 
+        if (request.cedula() != null && !request.cedula().trim().isEmpty()) {
+            java.util.Optional<HojaVida> existentePorCedula = hojaVidaRepository.findByCedula(request.cedula().trim());
+            if (existentePorCedula.isPresent()) {
+                return actualizarHojaVida(existentePorCedula.get().getId(), request);
+            }
+        }
+        if (request.usuarioId() != null) {
+            java.util.Optional<HojaVida> existentePorUsuario = hojaVidaRepository.findByUsuario_Id(request.usuarioId());
+            if (existentePorUsuario.isPresent()) {
+                return actualizarHojaVida(existentePorUsuario.get().getId(), request);
+            }
+        }
+
         Usuario usuario = null;
         if (request.usuarioId() != null) {
             usuario = usuarioRepository.findById(request.usuarioId())

@@ -104,7 +104,9 @@ public class ActaService {
         }
 
         acta.setTitulo(actaDTO.titulo());
-        acta.setContenidoHtml(actaDTO.contenidoHtml());
+        if (actaDTO.contenidoHtml() != null) {
+            acta.setContenidoHtml(actaDTO.contenidoHtml());
+        }
         acta.setEstado(actaDTO.estado());
         acta.setTipo(actaDTO.tipo());
         acta.setProceso(actaDTO.proceso());

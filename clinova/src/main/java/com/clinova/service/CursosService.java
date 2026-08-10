@@ -15,6 +15,8 @@ import com.clinova.entity.CursoMaestro;
 import com.clinova.repository.CursoMaestroRepository;
 import com.clinova.repository.UsuarioRepository;
 import com.clinova.entity.Usuario;
+import com.clinova.entity.HojaVida;
+import com.clinova.repository.HojaVidaRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class CursosService {
     private final SoporteService soporteService;
     private final CursoMaestroRepository cursoMaestroRepository;
     private final UsuarioRepository usuarioRepository;
+    private final HojaVidaRepository hojaVidaRepository;
 
     @Transactional(readOnly = true)
     public List<CursoMaestroDTO> obtenerCursosMaestros() {
@@ -83,6 +86,7 @@ public class CursosService {
             if (!yaAsignado) {
                 CursoAsignado ca = CursoAsignado.builder()
                         .usuario(u)
+                        .hojaVida(u.getHojaVida())
                         .cursoMaestro(curso)
                         .estado("PENDIENTE")
                         .build();
@@ -104,6 +108,7 @@ public class CursosService {
         if (!yaAsignado) {
             CursoAsignado ca = CursoAsignado.builder()
                     .usuario(u)
+                    .hojaVida(u.getHojaVida())
                     .cursoMaestro(curso)
                     .estado("PENDIENTE")
                     .build();
@@ -121,33 +126,61 @@ public class CursosService {
         cursoAsignadoRepository.deleteById(asignacionId);
     }
 
+    @Transactional(readOnly = true)
     public List<CursoAsignadoDTO> obtenerCursosPorUsuario(Long usuarioId) {
         return cursoAsignadoRepository.findByUsuarioId(usuarioId).stream()
-                .map(ca -> {
-                    boolean permiteCarga = true;
-                    LocalDate limite = ca.getCursoMaestro().getFechaLimiteGlobal();
-                    if (limite != null && LocalDate.now().isAfter(limite)) {
-                        permiteCarga = false;
-                    }
-                    String usuarioNombre = ca.getUsuario() != null && ca.getUsuario().getPersona() != null
-                            ? ca.getUsuario().getPersona().getPrimerNombre() + " " + ca.getUsuario().getPersona().getPrimerApellido()
-                            : (ca.getUsuario() != null ? ca.getUsuario().getUsername() : "Desconocido");
-
-                    return new CursoAsignadoDTO(
-                            ca.getId(),
-                            ca.getCursoMaestro().getNombre(),
-                            ca.getCursoMaestro().getDescripcion(),
-                            usuarioNombre,
-                            ca.getEstado(),
-                            ca.getFechaRealizacion(),
-                            ca.getFechaExpiracion(),
-                            limite,
-                            ca.getCertificadoUrl(),
-                            permiteCarga,
-                            ca.getCursoMaestro().getEsGlobal() != null ? ca.getCursoMaestro().getEsGlobal() : false
-                    );
-                })
+                .map(this::mapearACursoAsignadoDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<CursoAsignadoDTO> obtenerCursosPorHojaVida(Long hojaVidaId) {
+        List<CursoAsignado> asignaciones = cursoAsignadoRepository.findByHojaVidaId(hojaVidaId);
+        if (asignaciones.isEmpty()) {
+            HojaVida hv = hojaVidaRepository.findById(hojaVidaId).orElse(null);
+            if (hv != null && hv.getUsuario() != null) {
+                asignaciones = cursoAsignadoRepository.findByUsuarioId(hv.getUsuario().getId());
+            }
+        }
+        return asignaciones.stream()
+                .map(this::mapearACursoAsignadoDTO)
+                .collect(Collectors.toList());
+    }
+
+    private CursoAsignadoDTO mapearACursoAsignadoDTO(CursoAsignado ca) {
+        CursoMaestro cm = ca.getCursoMaestro();
+        String cursoNombre = cm != null ? cm.getNombre() : "Curso sin nombre";
+        String descripcion = cm != null ? cm.getDescripcion() : "";
+        LocalDate limite = cm != null ? cm.getFechaLimiteGlobal() : null;
+        Boolean esGlobal = cm != null && cm.getEsGlobal() != null ? cm.getEsGlobal() : false;
+
+        boolean permiteCarga = true;
+        if (limite != null && LocalDate.now().isAfter(limite)) {
+            permiteCarga = false;
+        }
+
+        String usuarioNombre = "Desconocido";
+        if (ca.getUsuario() != null && ca.getUsuario().getPersona() != null) {
+            usuarioNombre = ca.getUsuario().getPersona().getPrimerNombre() + " " + ca.getUsuario().getPersona().getPrimerApellido();
+        } else if (ca.getHojaVida() != null) {
+            usuarioNombre = ca.getHojaVida().getNombres() + " " + ca.getHojaVida().getApellidos();
+        } else if (ca.getUsuario() != null) {
+            usuarioNombre = ca.getUsuario().getUsername();
+        }
+
+        return new CursoAsignadoDTO(
+                ca.getId(),
+                cursoNombre,
+                descripcion,
+                usuarioNombre,
+                ca.getEstado(),
+                ca.getFechaRealizacion(),
+                ca.getFechaExpiracion(),
+                limite,
+                ca.getCertificadoUrl(),
+                permiteCarga,
+                esGlobal
+        );
     }
 
     @Transactional
@@ -179,6 +212,7 @@ public class CursosService {
             if (!yaAsignado) {
                 CursoAsignado ca = CursoAsignado.builder()
                         .usuario(usuario)
+                        .hojaVida(usuario.getHojaVida())
                         .cursoMaestro(curso)
                         .estado("PENDIENTE")
                         .build();

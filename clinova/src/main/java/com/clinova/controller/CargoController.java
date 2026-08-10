@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/cargos")
+@RequestMapping({"/api/v1/cargos", "/api/cargos"})
 @RequiredArgsConstructor
 public class CargoController {
 

@@ -14,12 +14,16 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
     long countByCodigoStartingWith(String prefix);
     boolean existsByCodigo(String codigo);
 
+    @org.springframework.data.jpa.repository.Query("SELECT d.codigo FROM Documento d WHERE d.codigo LIKE CONCAT(:prefix, '%')")
+    List<String> findCodigosByPrefix(@org.springframework.data.repository.query.Param("prefix") String prefix);
+
     @org.springframework.data.jpa.repository.Query("""
         SELECT new com.clinova.dto.DocumentoListDTO(
             d.id, d.kawakId, d.codigo, d.nombre, d.tipo, d.proceso, d.sede,
             d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas,
-            d.rutaArchivoLocal, d.ubicacion, d.fechaAprobacion
-        ) FROM Documento d ORDER BY d.id DESC
+            d.rutaArchivoLocal, d.ubicacion, d.ubicacionPdf, d.fechaAprobacion,
+            d.fechaElaboracion, d.fechaRevision
+        ) FROM Documento d ORDER BY COALESCE(d.kawakId, d.id) DESC
     """)
     List<com.clinova.dto.DocumentoListDTO> findAllLightweight();
 }

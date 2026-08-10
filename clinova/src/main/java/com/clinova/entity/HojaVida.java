@@ -1,5 +1,6 @@
 package com.clinova.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -122,6 +123,7 @@ public class HojaVida {
             joinColumns = @JoinColumn(name = "hoja_vida_id"),
             inverseJoinColumns = @JoinColumn(name = "cargo_id")
     )
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "permisos", "reportaA", "areaSemaforizacion"})
     private List<Cargo> cargos;
 
     @ManyToMany(fetch = FetchType.LAZY)

@@ -4,30 +4,21 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
+import java.time.LocalDate;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class SemaforizacionReporteDTO {
-    private Long hojaVidaId;
     private Long usuarioId;
     private String nombreCompleto;
-    private String identificacion;
+    private String documento;
     private String cargo;
-    private String sede;
-    
-    // Contrato
-    private String tipoContrato;
-    private Long valorContrato;
-    private String tiempoDuracionContrato;
-    private String fechaContratoInicial;
-    private String fechaFinalizacionContrato;
-    private Long diasFinalizacionContrato;
-    private String estadoContrato;
-    
-    // Cursos
-    private List<CursoSemaforoDTO> cursos;
+    private String cursoRequerido;
+    private String estadoCurso; // "VIGENTE", "POR_VENCER", "VENCIDO", "FALTANTE"
+    private LocalDate fechaRealizacion;
+    private LocalDate fechaVencimiento;
+    private String soporteUrl;
+    private String estadoEmpleado;
 }

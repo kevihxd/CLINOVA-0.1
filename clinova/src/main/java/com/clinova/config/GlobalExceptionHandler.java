@@ -14,14 +14,21 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Parametro invalido: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("status", "ERROR", "message", ex.getMessage() != null ? ex.getMessage() : "Parámetro inválido"));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
-        log.error("Error de negocio: {}", ex.getMessage(), ex);
-        String msg = ex.getMessage() != null ? ex.getMessage() : "Error interno (sin mensaje)";
+        log.error("Error inesperado en tiempo de ejecucion: {}", ex.getMessage(), ex);
+        String msg = ex.getMessage() != null ? ex.getMessage() : "Error interno del servidor";
         Map<String, String> body = new HashMap<>();
         body.put("status", "ERROR");
         body.put("message", msg);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

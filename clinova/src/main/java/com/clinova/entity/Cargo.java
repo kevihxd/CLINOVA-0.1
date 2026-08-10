@@ -27,6 +27,9 @@ public class Cargo {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "reportaA", "permisos"})
     private Cargo reportaA;
 
+    @Column(name = "area_semaforizacion", length = 50)
+    private String areaSemaforizacion = "ADMINISTRATIVO";
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "cargo_permisos",

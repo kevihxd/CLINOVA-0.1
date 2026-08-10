@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/cursos")
+@RequestMapping({"/api/v1/cursos", "/api/cursos"})
 @RequiredArgsConstructor
 public class CursosController {
 
@@ -21,6 +21,11 @@ public class CursosController {
     @GetMapping("/mis-cursos/{usuarioId}")
     public ResponseEntity<List<CursoAsignadoDTO>> listarMisCursos(@PathVariable Long usuarioId) {
         return ResponseEntity.ok(cursosService.obtenerCursosPorUsuario(usuarioId));
+    }
+
+    @GetMapping("/hoja-vida/{hojaVidaId}")
+    public ResponseEntity<List<CursoAsignadoDTO>> listarCursosPorHojaVida(@PathVariable Long hojaVidaId) {
+        return ResponseEntity.ok(cursosService.obtenerCursosPorHojaVida(hojaVidaId));
     }
 
     @PostMapping("/subir-certificado/{asignacionId}")

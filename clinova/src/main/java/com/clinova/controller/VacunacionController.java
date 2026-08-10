@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/vacunacion")
+@RequestMapping({"/api/v1/vacunacion", "/api/vacunacion"})
 @RequiredArgsConstructor
 public class VacunacionController {
 

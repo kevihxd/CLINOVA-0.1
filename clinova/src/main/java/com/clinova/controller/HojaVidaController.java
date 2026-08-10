@@ -19,7 +19,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/hojas-vida")
+@RequestMapping({"/api/v1/hojas-vida", "/api/hojas-vida"})
 @RequiredArgsConstructor
 public class HojaVidaController {
 

@@ -1,113 +1,113 @@
 package com.clinova.service;
 
-import com.clinova.dto.CursoSemaforoDTO;
 import com.clinova.dto.SemaforizacionReporteDTO;
-import com.clinova.entity.CursoAsignado;
-import com.clinova.entity.CursoMaestro;
-import com.clinova.entity.HojaVida;
-import com.clinova.repository.CursoAsignadoRepository;
-import com.clinova.repository.CursoMaestroRepository;
-import com.clinova.repository.HojaVidaRepository;
+import com.clinova.entity.Usuario;
+import com.clinova.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SemaforizacionService {
 
-    private final HojaVidaRepository hojaVidaRepository;
-    private final CursoMaestroRepository cursoMaestroRepository;
-    private final CursoAsignadoRepository cursoAsignadoRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    public List<SemaforizacionReporteDTO> obtenerReporteSemaforizacionGlobal(String area) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT
+                hv.id                                          AS usuario_id,
+                CONCAT(hv.nombres, ' ', hv.apellidos)         AS nombre_completo,
+                hv.cedula                                      AS numero_documento,
+                COALESCE(c.nombre, 'Sin Cargo')                AS cargo,
+                cm.nombre                                      AS curso_requerido,
+                cm.meses_vigencia,
+                ca.fecha_realizacion,
+                ca.fecha_expiracion                            AS fecha_vencimiento,
+                ca.certificado_url,
+                ca.estado                                      AS estado_asignado,
+                hv.estado                                      AS estado_empleado,
+                CASE WHEN ccm.cargo_id IS NOT NULL THEN 1 ELSE 0 END AS is_required
+            FROM hojas_vida hv
+            LEFT JOIN hojas_vida_cargos hvc ON hv.id = hvc.hoja_vida_id
+            LEFT JOIN cargos c              ON hvc.cargo_id = c.id
+        """);
 
-    @Transactional(readOnly = true)
-    public List<SemaforizacionReporteDTO> generarReporteSemaforizacion() {
-        List<HojaVida> hojasVida = hojaVidaRepository.findAll();
-        List<CursoMaestro> cursosGlobales = cursoMaestroRepository.findByEsGlobalTrue();
-        LocalDate hoy = LocalDate.now();
+        boolean filterByArea = area != null && !area.trim().isEmpty() && !"TODOS".equalsIgnoreCase(area);
 
-        return hojasVida.stream()
-                .filter(hv -> "ACTIVO".equalsIgnoreCase(hv.getEstado()) || hv.getEstado() == null)
-                .map(hv -> mapToReporteDTO(hv, cursosGlobales, hoy))
-                .collect(Collectors.toList());
-    }
-
-    private SemaforizacionReporteDTO mapToReporteDTO(HojaVida hv, List<CursoMaestro> cursosGlobales, LocalDate hoy) {
-        SemaforizacionReporteDTO dto = SemaforizacionReporteDTO.builder()
-                .hojaVidaId(hv.getId())
-                .usuarioId(hv.getUsuario() != null ? hv.getUsuario().getId() : null)
-                .nombreCompleto(hv.getNombres() + " " + hv.getApellidos())
-                .identificacion(hv.getCedula())
-                .cargo(hv.getCargos() != null && !hv.getCargos().isEmpty() ? hv.getCargos().get(0).getNombre() : "SIN CARGO")
-                .sede(hv.getSedes() != null && !hv.getSedes().isEmpty() ? hv.getSedes().get(0).getNombre() : "SIN SEDE")
-                .tipoContrato(hv.getTipoContrato())
-                .valorContrato(hv.getValorContrato())
-                .tiempoDuracionContrato(hv.getTiempoDuracionContrato())
-                .fechaContratoInicial(hv.getFechaIngreso() != null ? hv.getFechaIngreso().format(formatter) : null)
-                .build();
-
-        // Calcular semaforizacion de contrato
-        if (hv.getFechaRetiro() != null) {
-            dto.setFechaFinalizacionContrato(hv.getFechaRetiro().format(formatter));
-            long diasContrato = ChronoUnit.DAYS.between(hoy, hv.getFechaRetiro());
-            dto.setDiasFinalizacionContrato(diasContrato);
-            dto.setEstadoContrato(determinarEstado(diasContrato));
+        if (filterByArea) {
+            sql.append("""
+                JOIN cargos_cursos_maestros ccm ON ccm.cargo_id = c.id
+                JOIN curso_maestro cm ON ccm.curso_maestro_id = cm.id
+            """);
         } else {
-            dto.setDiasFinalizacionContrato(null);
-            dto.setEstadoContrato("NO DEFINIDO");
+            sql.append("""
+                JOIN  curso_maestro cm          ON 1=1
+                LEFT JOIN cargos_cursos_maestros ccm ON ccm.cargo_id = c.id AND ccm.curso_maestro_id = cm.id
+            """);
         }
 
-        // Calcular semaforizacion de cursos
-        List<CursoSemaforoDTO> cursosSemaforo = new ArrayList<>();
-        List<CursoAsignado> asignados = cursoAsignadoRepository.findByHojaVidaId(hv.getId());
-        Map<Long, CursoAsignado> asignadosMap = asignados.stream()
-                .collect(Collectors.toMap(c -> c.getCursoMaestro().getId(), c -> c));
+        sql.append("""
+            LEFT JOIN curso_asignado ca     ON ca.hoja_vida_id = hv.id AND ca.curso_maestro_id = cm.id
+        """);
 
-        for (CursoMaestro maestro : cursosGlobales) {
-            CursoAsignado asignado = asignadosMap.get(maestro.getId());
-            if (asignado != null && asignado.getFechaExpiracion() != null) {
-                long diasCurso = ChronoUnit.DAYS.between(hoy, asignado.getFechaExpiracion());
-                cursosSemaforo.add(CursoSemaforoDTO.builder()
-                        .cursoMaestroId(maestro.getId())
-                        .nombreCurso(maestro.getNombre())
-                        .fechaRealizacion(asignado.getFechaRealizacion() != null ? asignado.getFechaRealizacion().format(formatter) : null)
-                        .fechaExpiracion(asignado.getFechaExpiracion().format(formatter))
-                        .diasRestantes(diasCurso)
-                        .estado(determinarEstado(diasCurso))
-                        .build());
-            } else {
-                // No tiene el curso o no tiene fecha expiracion
-                cursosSemaforo.add(CursoSemaforoDTO.builder()
-                        .cursoMaestroId(maestro.getId())
-                        .nombreCurso(maestro.getNombre())
-                        .estado("NO ASIGNADO")
-                        .build());
+        Object[] params;
+        if (filterByArea) {
+            sql.append(" WHERE c.area_semaforizacion = ? ");
+            params = new Object[]{area.trim()};
+        } else {
+            params = new Object[]{};
+        }
+
+        sql.append(" ORDER BY hv.apellidos, hv.nombres, cm.nombre ");
+
+        return jdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
+            LocalDate realizacion = rs.getDate("fecha_realizacion") != null
+                    ? rs.getDate("fecha_realizacion").toLocalDate() : null;
+            LocalDate vencimiento = rs.getDate("fecha_vencimiento") != null
+                    ? rs.getDate("fecha_vencimiento").toLocalDate() : null;
+
+            int mesesVigencia = rs.getInt("meses_vigencia");
+
+            if (realizacion != null && mesesVigencia > 0) {
+                LocalDate vencimientoCalculado = realizacion.plusMonths(mesesVigencia);
+                if (vencimiento == null || !vencimiento.equals(vencimientoCalculado)) {
+                    vencimiento = vencimientoCalculado;
+                }
             }
-        }
-        
-        dto.setCursos(cursosSemaforo);
-        return dto;
-    }
 
-    private String determinarEstado(long diasRestantes) {
-        if (diasRestantes < 0) {
-            return "VENCIDO";
-        } else if (diasRestantes <= 30) {
-            return "PROXIMO A VENCER";
-        } else {
-            return "VIGENTE";
-        }
+            boolean isRequired = rs.getInt("is_required") == 1;
+            String estadoAsignado = rs.getString("estado_asignado");
+            
+            String estado = "FALTANTE";
+            
+            if (!isRequired) {
+                estado = "NO_APLICA";
+            } else if (vencimiento != null) {
+                long diasRestantes = ChronoUnit.DAYS.between(LocalDate.now(), vencimiento);
+                if (diasRestantes < 0)        estado = "VENCIDO";
+                else if (diasRestantes <= 30) estado = "POR_VENCER";
+                else                          estado = "VIGENTE";
+            } else if (mesesVigencia == 0 && ("COMPLETADO".equalsIgnoreCase(estadoAsignado) || realizacion != null || rs.getString("certificado_url") != null)) {
+                estado = "VIGENTE";
+            }
+
+            return SemaforizacionReporteDTO.builder()
+                    .usuarioId(rs.getLong("usuario_id"))
+                    .nombreCompleto(rs.getString("nombre_completo"))
+                    .documento(rs.getString("numero_documento"))
+                    .cargo(rs.getString("cargo"))
+                    .cursoRequerido(rs.getString("curso_requerido"))
+                    .fechaRealizacion(realizacion)
+                    .fechaVencimiento(vencimiento)
+                    .soporteUrl(rs.getString("certificado_url"))
+                    .estadoCurso(estado)
+                    .estadoEmpleado(rs.getString("estado_empleado"))
+                    .build();
+        });
     }
 }

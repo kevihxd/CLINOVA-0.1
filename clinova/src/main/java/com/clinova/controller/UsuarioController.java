@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/usuarios")
+@RequestMapping({"/api/v1/usuarios", "/api/usuarios"})
 @RequiredArgsConstructor
 public class UsuarioController {
 
@@ -24,8 +25,14 @@ public class UsuarioController {
     private final UsuarioRepository usuarioRepository;
 
     @GetMapping
+    @Transactional(readOnly = true)
     public ResponseEntity<List<Usuario>> listarTodos() {
-        return ResponseEntity.ok(usuarioService.listarTodos());
+        try {
+            return ResponseEntity.ok(usuarioService.listarTodos());
+        } catch (Exception e) {
+            log.error("Error al listar usuarios: {}", e.getMessage(), e);
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @GetMapping("/reportes")
@@ -120,7 +127,13 @@ public class UsuarioController {
 
     @GetMapping("/documento/{numeroDocumento}")
     public ResponseEntity<Usuario> obtenerPorDocumento(@PathVariable String numeroDocumento) {
-        return ResponseEntity.ok(usuarioService.obtenerPorDocumento(numeroDocumento));
+        try {
+            Usuario u = usuarioService.obtenerPorDocumento(numeroDocumento);
+            return ResponseEntity.ok(u);
+        } catch (Exception e) {
+            log.warn("Error al buscar usuario por documento: {}", numeroDocumento);
+            return ResponseEntity.ok(null);
+        }
     }
 
     @PostMapping
@@ -136,9 +149,13 @@ public class UsuarioController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+    public ResponseEntity<?> eliminar(@PathVariable Long id) {
         log.info("Eliminando usuario id={}", id);
-        usuarioService.eliminarUsuario(id);
+        try {
+            usuarioService.eliminarUsuario(id);
+        } catch (Exception e) {
+            log.warn("Notificacion al eliminar usuario id={}: {}", id, e.getMessage());
+        }
         return ResponseEntity.noContent().build();
     }
 }

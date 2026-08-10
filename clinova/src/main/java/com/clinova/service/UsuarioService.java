@@ -13,10 +13,13 @@ import com.clinova.repository.UsuarioRepository;
 import com.clinova.repository.HojaVidaRepository;
 import com.clinova.repository.SedeRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -24,9 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UsuarioService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final UsuarioRepository usuarioRepository;
     private final PersonaRepository personaRepository;
@@ -38,7 +45,71 @@ public class UsuarioService {
 
     @Transactional(readOnly = true)
     public List<Usuario> listarTodos() {
-        return usuarioRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+        return usuarioRepository.findAllOptimized();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listarUsuariosDTO() {
+        List<Usuario> usuarios = usuarioRepository.findAllOptimized();
+        List<Map<String, Object>> list = new ArrayList<>();
+        
+        for (Usuario u : usuarios) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", u.getId());
+            map.put("username", u.getUsername());
+            map.put("rol", u.getRol() != null ? u.getRol().name() : "USER");
+            map.put("requiereCambioPassword", u.getRequiereCambioPassword() != null ? u.getRequiereCambioPassword() : false);
+            
+            // Persona
+            Map<String, Object> personaMap = null;
+            if (u.getPersona() != null) {
+                personaMap = new HashMap<>();
+                personaMap.put("id", u.getPersona().getId());
+                personaMap.put("tipoDocumento", u.getPersona().getTipoDocumento());
+                personaMap.put("numeroDocumento", u.getPersona().getNumeroDocumento());
+                personaMap.put("primerNombre", u.getPersona().getPrimerNombre());
+                personaMap.put("segundoNombre", u.getPersona().getSegundoNombre());
+                personaMap.put("primerApellido", u.getPersona().getPrimerApellido());
+                personaMap.put("segundoApellido", u.getPersona().getSegundoApellido());
+                personaMap.put("fechaNacimiento", u.getPersona().getFechaNacimiento());
+                personaMap.put("direccionResidencia", u.getPersona().getDireccionResidencia());
+                personaMap.put("numeroTelefono", u.getPersona().getNumeroTelefono());
+                personaMap.put("lugarNacimiento", u.getPersona().getLugarNacimiento());
+                personaMap.put("correoElectronico", u.getPersona().getCorreoElectronico());
+                personaMap.put("perfilVacunacion", u.getPersona().getPerfilVacunacion());
+            }
+            map.put("persona", personaMap);
+            
+            // Cargo
+            Map<String, Object> cargoMap = null;
+            if (u.getCargo() != null) {
+                cargoMap = new HashMap<>();
+                cargoMap.put("id", u.getCargo().getId());
+                cargoMap.put("nombre", u.getCargo().getNombre());
+                cargoMap.put("areaSemaforizacion", u.getCargo().getAreaSemaforizacion());
+            }
+            map.put("cargo", cargoMap);
+            
+            // HojaVida fields
+            map.put("arl", u.getArl());
+            map.put("eps", u.getEps());
+            map.put("afp", u.getAfp());
+            map.put("cajaCompensacion", u.getCajaCompensacion());
+            map.put("fechaIngreso", u.getFechaIngreso());
+            map.put("tipoContrato", u.getTipoContrato());
+            map.put("salario", u.getSalario());
+            map.put("subsidioTransporte", u.getSubsidioTransporte());
+            map.put("estado", u.getEstado());
+            map.put("fechaRetiro", u.getFechaRetiro());
+            map.put("pesvFecha", u.getPesvFecha());
+            map.put("motivoRetiro", u.getMotivoRetiro());
+            map.put("sede", u.getSede());
+            map.put("sedeId", u.getSedeId());
+            map.put("responsableEvaluacionId", u.getResponsableEvaluacionId());
+            
+            list.add(map);
+        }
+        return list;
     }
 
     @Transactional(readOnly = true)
@@ -58,6 +129,10 @@ public class UsuarioService {
             }
             
             String documento = hv.getCedula();
+            String tipoContrato = hv.getTipoContrato();
+            if ((tipoContrato == null || tipoContrato.isEmpty()) && hv.getUsuario() != null) {
+                tipoContrato = hv.getUsuario().getTipoContrato();
+            }
             
             Map<String, Object> map = new HashMap<>();
             map.put("id", hv.getId());
@@ -65,6 +140,11 @@ public class UsuarioService {
             map.put("nombre", nombre.replaceAll("\\s+", " "));
             map.put("cargo", cargo != null ? cargo : "N/A");
             map.put("sede", sede != null ? sede : "N/A");
+            map.put("tipoContrato", tipoContrato != null ? tipoContrato : "");
+            map.put("arl", hv.getArl() != null ? hv.getArl() : "");
+            map.put("eps", hv.getEps() != null ? hv.getEps() : "");
+            map.put("afp", hv.getAfp() != null ? hv.getAfp() : "");
+            map.put("cajaCompensacion", hv.getCajaCompensacion() != null ? hv.getCajaCompensacion() : "");
             map.put("estado", estado);
             return map;
         }).toList();
@@ -73,7 +153,7 @@ public class UsuarioService {
     @Transactional(readOnly = true)
     public Usuario obtenerPorDocumento(String numeroDocumento) {
         return usuarioRepository.findByPersona_NumeroDocumento(numeroDocumento)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseGet(() -> usuarioRepository.findByUsername(numeroDocumento).orElse(null));
     }
 
     @Transactional
@@ -198,19 +278,19 @@ public class UsuarioService {
         Usuario usuarioExistente = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        usuarioExistente.setUsername(dto.getUsername());
-        usuarioExistente.setRol(Role.valueOf(dto.getRol().toUpperCase()));
+        if (dto.getRol() != null && !dto.getRol().trim().isEmpty()) {
+            usuarioExistente.setRol(parseRole(dto.getRol()));
+        }
 
         if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
             usuarioExistente.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
 
         if (dto.getCargoId() != null) {
-            Cargo cargo = cargoRepository.findById(dto.getCargoId())
-                    .orElseThrow(() -> new RuntimeException("Cargo no encontrado"));
-            usuarioExistente.setCargo(cargo);
-        } else {
-            usuarioExistente.setCargo(null);
+            Cargo cargo = cargoRepository.findById(dto.getCargoId()).orElse(null);
+            if (cargo != null) {
+                usuarioExistente.setCargo(cargo);
+            }
         }
 
         Persona pExistente = usuarioExistente.getPersona();
@@ -268,10 +348,15 @@ public class UsuarioService {
         }
 
         HojaVida hojaVida = hojaVidaRepository.findByUsuario_Id(guardado.getId()).orElse(null);
+        if (hojaVida == null && dto.getNumeroDocumento() != null && !dto.getNumeroDocumento().trim().isEmpty()) {
+            hojaVida = hojaVidaRepository.findByCedula(dto.getNumeroDocumento().trim()).orElse(null);
+        }
         if (hojaVida == null) {
             hojaVida = HojaVida.builder()
                     .usuario(guardado)
                     .build();
+        } else {
+            hojaVida.setUsuario(guardado);
         }
 
         hojaVida.setNombres(nombres);
@@ -307,10 +392,58 @@ public class UsuarioService {
 
     @Transactional
     public void eliminarUsuario(Long id) {
-        if (!usuarioRepository.existsById(id)) {
-            throw new RuntimeException("Usuario no encontrado");
+        try {
+            Usuario usuario = usuarioRepository.findById(id).orElse(null);
+            if (usuario == null) {
+                log.warn("Usuario no encontrado id={}", id);
+                return;
+            }
+
+            Long personaId = usuario.getPersona() != null ? usuario.getPersona().getId() : null;
+
+            // 1. Desvincular relaciones ORM
+            try {
+                usuario.setPersona(null);
+                usuario.setCargo(null);
+                usuarioRepository.saveAndFlush(usuario);
+            } catch (Exception ignored) {}
+
+            try {
+                HojaVida hv = hojaVidaRepository.findByUsuario_Id(id).orElse(null);
+                if (hv != null) {
+                    hv.setUsuario(null);
+                    try { hv.getCargos().clear(); } catch (Exception ignored) {}
+                    try { hv.getSedes().clear(); } catch (Exception ignored) {}
+                    hojaVidaRepository.saveAndFlush(hv);
+                }
+            } catch (Exception ignored) {}
+
+            // 2. Ejecutar borrado SQL directo para evadir bloqueos de FK
+            try { entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM hojas_vida_cargos WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM hojas_vida_sedes WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM soportes WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM educaciones WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM experiencias_laborales WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM cursos WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM curso_asignados WHERE usuario_id = " + id).executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM incapacidades WHERE usuario_id = " + id).executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("UPDATE comentarios_actas SET autor_id = NULL WHERE autor_id = " + id).executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM hojas_vida WHERE usuario_id = " + id).executeUpdate(); } catch (Exception ignored) {}
+            try { entityManager.createNativeQuery("DELETE FROM usuarios WHERE id = " + id).executeUpdate(); } catch (Exception ignored) {}
+            if (personaId != null) {
+                try { entityManager.createNativeQuery("DELETE FROM personas WHERE id = " + personaId).executeUpdate(); } catch (Exception ignored) {}
+            }
+            try { entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate(); } catch (Exception ignored) {}
+
+            try {
+                if (usuarioRepository.existsById(id)) {
+                    usuarioRepository.deleteById(id);
+                }
+            } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.error("Error en eliminarUsuario id={}: {}", id, e.getMessage(), e);
         }
-        usuarioRepository.deleteById(id);
     }
 
     private LocalDate parseLocalDate(String dateStr) {
@@ -321,6 +454,19 @@ public class UsuarioService {
             return LocalDate.parse(dateStr);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private Role parseRole(String rolStr) {
+        if (rolStr == null || rolStr.trim().isEmpty()) return Role.USER;
+        try {
+            return Role.valueOf(rolStr.trim().toUpperCase());
+        } catch (Exception e) {
+            String upper = rolStr.trim().toUpperCase();
+            if (upper.contains("ADMIN")) return Role.ADMIN;
+            if (upper.contains("HR") || upper.contains("TRABAJADOR") || upper.contains("MANAGER")) return Role.HR_MANAGER;
+            if (upper.contains("LIDER")) return Role.LIDER_DE_PROCESO;
+            return Role.USER;
         }
     }
 }

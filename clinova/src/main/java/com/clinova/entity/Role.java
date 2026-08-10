@@ -4,5 +4,6 @@ public enum Role {
     ADMIN,
     USER,
     HR_MANAGER,
-    LIDER_DE_PROCESO
+    LIDER_DE_PROCESO,
+    USER_PRACTICANTE
 }

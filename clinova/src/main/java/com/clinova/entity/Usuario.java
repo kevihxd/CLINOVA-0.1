@@ -48,111 +48,176 @@ public class Usuario implements UserDetails {
     @JoinColumn(name = "cargo_id", nullable = true)
     private Cargo cargo;
 
-    @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "usuario", "cargos", "sedes", "competencias", "soportes", "documentos", "historiales"})
+    @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private HojaVida hojaVida;
 
     @Override
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
         List<GrantedAuthority> authorities = new ArrayList<>();
-
 
         if (rol != null) {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + rol.name()));
         }
 
-        if (cargo != null && cargo.getPermisos() != null) {
-            for (Permiso permiso : cargo.getPermisos()) {
-                authorities.add(new SimpleGrantedAuthority(permiso.getNombre()));
+        try {
+            if (cargo != null && org.hibernate.Hibernate.isInitialized(cargo) && cargo.getPermisos() != null && org.hibernate.Hibernate.isInitialized(cargo.getPermisos())) {
+                for (Permiso permiso : cargo.getPermisos()) {
+                    authorities.add(new SimpleGrantedAuthority(permiso.getNombre()));
+                }
             }
-        }
+        } catch (Exception ignored) {}
 
         return authorities;
     }
 
     @Override
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isAccountNonExpired() {
         return true;
     }
 
     @Override
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isAccountNonLocked() {
         return true;
     }
 
     @Override
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isCredentialsNonExpired() {
         return true;
     }
 
     @Override
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isEnabled() {
+        try {
+            if (hojaVida != null && org.hibernate.Hibernate.isInitialized(hojaVida)) {
+                String e = hojaVida.getEstado();
+                return e == null || e.equalsIgnoreCase("ACTIVO");
+            }
+        } catch (Exception e) {
+            return true;
+        }
         return true;
     }
 
-    public String getArl() {
-        return hojaVida != null ? hojaVida.getArl() : null;
-    }
-
-    public String getEps() {
-        return hojaVida != null ? hojaVida.getEps() : null;
-    }
-
-    public String getAfp() {
-        return hojaVida != null ? hojaVida.getAfp() : null;
-    }
-
-    public String getCajaCompensacion() {
-        return hojaVida != null ? hojaVida.getCajaCompensacion() : null;
-    }
-
-    public String getFechaIngreso() {
-        return (hojaVida != null && hojaVida.getFechaIngreso() != null) ? hojaVida.getFechaIngreso().toString() : null;
-    }
-
-    public String getTipoContrato() {
-        return hojaVida != null ? hojaVida.getTipoContrato() : null;
-    }
-
-    public Double getSalario() {
-        return hojaVida != null ? hojaVida.getSalario() : null;
-    }
-
-    public String getSubsidioTransporte() {
-        return hojaVida != null ? hojaVida.getSubsidioTransporte() : null;
-    }
-
-    public String getEstado() {
-        return hojaVida != null ? hojaVida.getEstado() : null;
-    }
-
-    public String getFechaRetiro() {
-        return (hojaVida != null && hojaVida.getFechaRetiro() != null) ? hojaVida.getFechaRetiro().toString() : null;
-    }
-
-    public String getPesvFecha() {
-        return hojaVida != null ? hojaVida.getPesv() : null;
-    }
-
-    public String getMotivoRetiro() {
-        return hojaVida != null ? hojaVida.getMotivoRetiro() : null;
-    }
-
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    public Sede getSede() {
-        if (hojaVida != null && hojaVida.getSedes() != null && !hojaVida.getSedes().isEmpty()) {
-            return hojaVida.getSedes().get(0);
+    private boolean isHvInit() {
+        try {
+            return hojaVida != null && org.hibernate.Hibernate.isInitialized(hojaVida);
+        } catch (Throwable e) {
+            return false;
         }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("arl")
+    public String getArl() {
+        try {
+            return isHvInit() ? hojaVida.getArl() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("eps")
+    public String getEps() {
+        try {
+            return isHvInit() ? hojaVida.getEps() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("afp")
+    public String getAfp() {
+        try {
+            return isHvInit() ? hojaVida.getAfp() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("cajaCompensacion")
+    public String getCajaCompensacion() {
+        try {
+            return isHvInit() ? hojaVida.getCajaCompensacion() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("fechaIngreso")
+    public String getFechaIngreso() {
+        try {
+            return (isHvInit() && hojaVida.getFechaIngreso() != null) ? hojaVida.getFechaIngreso().toString() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("tipoContrato")
+    public String getTipoContrato() {
+        try {
+            return isHvInit() ? hojaVida.getTipoContrato() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("salario")
+    public Double getSalario() {
+        try {
+            return isHvInit() ? hojaVida.getSalario() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("subsidioTransporte")
+    public String getSubsidioTransporte() {
+        try {
+            return isHvInit() ? hojaVida.getSubsidioTransporte() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("estado")
+    public String getEstado() {
+        try {
+            return isHvInit() ? hojaVida.getEstado() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("fechaRetiro")
+    public String getFechaRetiro() {
+        try {
+            return (isHvInit() && hojaVida.getFechaRetiro() != null) ? hojaVida.getFechaRetiro().toString() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("pesvFecha")
+    public String getPesvFecha() {
+        try {
+            return isHvInit() ? hojaVida.getPesv() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("motivoRetiro")
+    public String getMotivoRetiro() {
+        try {
+            return isHvInit() ? hojaVida.getMotivoRetiro() : null;
+        } catch (Throwable e) { return null; }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("sede")
+    public Sede getSede() {
+        try {
+            if (isHvInit() && hojaVida.getSedes() != null && org.hibernate.Hibernate.isInitialized(hojaVida.getSedes()) && !hojaVida.getSedes().isEmpty()) {
+                return hojaVida.getSedes().get(0);
+            }
+        } catch (Throwable e) {}
         return null;
     }
 
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @com.fasterxml.jackson.annotation.JsonProperty("sedeId")
     public Long getSedeId() {
-        Sede s = getSede();
-        return s != null ? s.getId() : null;
+        try {
+            Sede s = getSede();
+            return s != null ? s.getId() : null;
+        } catch (Throwable e) { return null; }
     }
 
+    @com.fasterxml.jackson.annotation.JsonProperty("responsableEvaluacionId")
     public Long getResponsableEvaluacionId() {
-        return hojaVida != null ? hojaVida.getResponsableEvaluacionId() : null;
+        try {
+            return isHvInit() ? hojaVida.getResponsableEvaluacionId() : null;
+        } catch (Throwable e) { return null; }
     }
 }
