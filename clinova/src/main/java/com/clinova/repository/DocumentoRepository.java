@@ -23,7 +23,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
             d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas,
             d.rutaArchivoLocal, d.ubicacion, d.ubicacionPdf, d.fechaAprobacion,
             d.fechaElaboracion, d.fechaRevision
-        ) FROM Documento d ORDER BY COALESCE(d.kawakId, d.id) DESC
+        ) FROM Documento d ORDER BY d.codigo ASC
     """)
     List<com.clinova.dto.DocumentoListDTO> findAllLightweight();
 }

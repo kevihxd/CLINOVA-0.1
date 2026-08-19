@@ -37,6 +37,7 @@ public class HojaVidaService {
     private final UsuarioRepository usuarioRepository;
     private final CargoRepository cargoRepository;
     private final SedeRepository sedeRepository;
+    private final HojaVidaHistorialService historialService;
 
     private final Path rootLocation = Paths.get("uploads/fotos");
 
@@ -134,8 +135,21 @@ public class HojaVidaService {
                 ? sedeRepository.findAllById(request.sedesIds())
                 : new ArrayList<>();
 
-        hojaVida.setNombres(request.nombres());
-        hojaVida.setApellidos(request.apellidos());
+        String contratoAnterior = hojaVida.getTipoContrato();
+        String contratoNuevo = request.tipoContrato();
+
+        if (contratoNuevo != null && !contratoNuevo.equalsIgnoreCase(contratoAnterior)) {
+            String currentUser = request.usuarioUltimaEdicion() != null ? request.usuarioUltimaEdicion() : "Sistema";
+            historialService.registrarHistorial(
+                    id, 
+                    "CAMBIO_CONTRATO", 
+                    "Cambio de Tipo de Contrato de [" + (contratoAnterior != null ? contratoAnterior : "N/A") + "] a [" + contratoNuevo + "]", 
+                    currentUser
+            );
+        }
+
+        hojaVida.setNombres(request.nombres() != null ? request.nombres().trim().toUpperCase() : null);
+        hojaVida.setApellidos(request.apellidos() != null ? request.apellidos().trim().toUpperCase() : null);
         hojaVida.setCedula(request.cedula());
         hojaVida.setFechaNacimiento(request.fechaNacimiento());
         hojaVida.setDireccionResidencia(request.direccionResidencia());
@@ -181,9 +195,10 @@ public class HojaVidaService {
             String nombreArchivo = UUID.randomUUID().toString() + "_" + archivo.getOriginalFilename();
             Path destino = this.rootLocation.resolve(nombreArchivo).normalize();
 
+            Files.createDirectories(destino.getParent());
             Files.copy(archivo.getInputStream(), destino, StandardCopyOption.REPLACE_EXISTING);
 
-            hojaVida.setFotoUrl("/uploads/fotos/" + nombreArchivo);
+            hojaVida.setFotoUrl("/api/v1/uploads/fotos/" + nombreArchivo);
             hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
             HojaVida hojaVidaActualizada = hojaVidaRepository.save(hojaVida);
 

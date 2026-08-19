@@ -1,0 +1,11 @@
+target/
+uploads/
+.git/
+.gitignore
+.idea/
+*.log
+scratch/
+backend_tree.txt
+db_tables.txt
+*.sql
+*.sql.gz

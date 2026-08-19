@@ -18,4 +18,8 @@ public class Sede {
 
     @Column(nullable = false, length = 150, unique = true)
     private String nombre;
+
+    @Column(name = "activo")
+    @Builder.Default
+    private Boolean activo = true;
 }

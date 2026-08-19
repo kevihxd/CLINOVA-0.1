@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -198,42 +199,51 @@ public class DocumentoController {
 
             String archivoReal = null;
             
-            // Si el cliente pide la vista previa en PDF, intentamos buscar primero el archivo PDF
+            // Probar candidatos de archivo en orden de prioridad
+            List<String> candidatos = new ArrayList<>();
+
             if ("pdf".equalsIgnoreCase(tipo)) {
-                archivoReal = doc.getUbicacionPdf();
-                if (isInvalidPath(archivoReal)) {
-                    String baseFile = doc.getRutaArchivoLocal();
-                    if (isInvalidPath(baseFile)) {
-                        baseFile = doc.getUbicacion();
-                    }
-                    if (!isInvalidPath(baseFile)) {
-                        int dotIndex = baseFile.lastIndexOf('.');
-                        if (dotIndex > 0) {
-                            String guessPdf = baseFile.substring(0, dotIndex) + ".pdf";
-                            Path checkPath = buscarArchivoFisico(guessPdf, "documentos");
-                            if (checkPath != null && Files.exists(checkPath)) {
-                                archivoReal = guessPdf;
-                            } else {
-                                archivoReal = baseFile;
-                            }
-                        } else {
-                            archivoReal = baseFile;
+                if (!isInvalidPath(doc.getUbicacionPdf()) && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
+                    candidatos.add(doc.getUbicacionPdf());
+                }
+                if (!isInvalidPath(doc.getUbicacion()) && doc.getUbicacion().toLowerCase().endsWith(".pdf")) {
+                    candidatos.add(doc.getUbicacion());
+                }
+                if (!isInvalidPath(doc.getRutaArchivoLocal()) && doc.getRutaArchivoLocal().toLowerCase().endsWith(".pdf")) {
+                    candidatos.add(doc.getRutaArchivoLocal());
+                }
+            }
+
+            // Agregar ubicaciones generales como fallback
+            if (!isInvalidPath(doc.getRutaArchivoLocal())) candidatos.add(doc.getRutaArchivoLocal());
+            if (!isInvalidPath(doc.getUbicacion())) candidatos.add(doc.getUbicacion());
+            if (!isInvalidPath(doc.getUbicacionPdf()) && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) candidatos.add(doc.getUbicacionPdf());
+
+            Path file = null;
+            for (String cand : candidatos) {
+                file = buscarArchivoFisico(cand, "documentos");
+                if (file != null && Files.exists(file) && Files.isReadable(file)) {
+                    break;
+                }
+                // Probar reemplazando extensión a .pdf / .docx / .xlsx
+                int dot = cand.lastIndexOf('.');
+                if (dot > 0) {
+                    String base = cand.substring(0, dot);
+                    for (String ext : List.of(".pdf", ".docx", ".xlsx", ".xls", ".doc")) {
+                        Path tryExt = buscarArchivoFisico(base + ext, "documentos");
+                        if (tryExt != null && Files.exists(tryExt) && Files.isReadable(tryExt)) {
+                            file = tryExt;
+                            break;
                         }
                     }
                 }
-            } else {
-                archivoReal = doc.getRutaArchivoLocal();
+                if (file != null) break;
             }
 
-            if (isInvalidPath(archivoReal)) {
-                archivoReal = doc.getUbicacion();
+            if (file == null || !Files.exists(file) || !Files.isReadable(file)) {
+                log.warn("Archivo físico no encontrado para Documento id={}", id);
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento no tiene archivo físico registrado en el servidor", null));
             }
-
-            if (isInvalidPath(archivoReal)) {
-                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento no tiene archivo físico registrado", null));
-            }
-
-            Path file = buscarArchivoFisico(archivoReal, "documentos");
 
             if (file != null && Files.exists(file) && Files.isReadable(file)) {
                 Resource resource = new UrlResource(file.toUri());
@@ -271,28 +281,54 @@ public class DocumentoController {
     }
 
     private Path buscarArchivoFisico(String nombreArchivo, String subcarpeta) {
-        if (nombreArchivo == null || nombreArchivo.trim().isEmpty()) return null;
+        if (nombreArchivo == null || nombreArchivo.trim().isEmpty() || "SIN_ARCHIVO".equalsIgnoreCase(nombreArchivo.trim())) return null;
+
+        String cleanedName = nombreArchivo.trim().replace("\\", "/");
 
         try {
-            Path directPath = Paths.get(nombreArchivo);
+            // 1. Probar la ruta directa unida a rootUploads
+            Path directPath = root.resolve(cleanedName).normalize();
             if (Files.exists(directPath) && Files.isRegularFile(directPath)) {
                 return directPath;
             }
         } catch (Exception ignored) {}
 
-        Path fromService = fileLocator.buscarArchivo(nombreArchivo);
-        if (fromService != null) return fromService;
+        try {
+            // 2. Probar como ruta absoluta
+            Path absPath = Paths.get(cleanedName);
+            if (Files.exists(absPath) && Files.isRegularFile(absPath)) {
+                return absPath;
+            }
+        } catch (Exception ignored) {}
 
-        Path path = root.resolve(subcarpeta).resolve(nombreArchivo).normalize();
-        if (Files.exists(path)) return path;
+        // 3. Probar via FileLocatorService (búsqueda en todo el índice en memoria)
+        Path fromService = fileLocator.buscarArchivo(cleanedName);
+        if (fromService != null && Files.exists(fromService)) return fromService;
 
-        path = root.resolve(nombreArchivo).normalize();
-        if (Files.exists(path)) return path;
+        // Extraer nombre de archivo simple para fallback
+        String baseName = Paths.get(cleanedName).getFileName().toString();
+        fromService = fileLocator.buscarArchivo(baseName);
+        if (fromService != null && Files.exists(fromService)) return fromService;
 
-        String[] carpetasExtendidas = {"documentos", "soportes/otros_soportes", "soportes/sin_clasificar", "certificados", "fotos", "soportes"};
+        // 4. Probar subcarpetas conocidas
+        String[] carpetasExtendidas = {
+            "documentos", 
+            "files/Formatos/1", 
+            "files/Documentos/1", 
+            "files/Externos", 
+            "files/Internos", 
+            "soportes/otros_soportes", 
+            "soportes/sin_clasificar", 
+            "certificados", 
+            "fotos", 
+            "soportes"
+        };
         for (String dir : carpetasExtendidas) {
-            path = root.resolve(dir).resolve(nombreArchivo).normalize();
-            if (Files.exists(path)) return path;
+            Path path = root.resolve(dir).resolve(baseName).normalize();
+            if (Files.exists(path) && Files.isRegularFile(path)) return path;
+
+            Path dockerPath = Paths.get("/app/uploads").resolve(dir).resolve(baseName).normalize();
+            if (Files.exists(dockerPath) && Files.isRegularFile(dockerPath)) return dockerPath;
         }
 
         return null;

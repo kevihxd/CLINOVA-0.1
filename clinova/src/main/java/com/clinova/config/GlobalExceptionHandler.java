@@ -23,11 +23,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
-        log.error("Error inesperado en tiempo de ejecucion: {}", ex.getMessage(), ex);
-        String msg = ex.getMessage() != null ? ex.getMessage() : "Error interno del servidor";
+        log.error("Error en tiempo de ejecucion: {}", ex.getMessage(), ex);
+        String msg = ex.getMessage() != null ? ex.getMessage() : "Error en la solicitud";
         Map<String, String> body = new HashMap<>();
         body.put("status", "ERROR");
         body.put("message", msg);
+        
+        // Si es una validación explícita de negocio, responder 400 Bad Request
+        if (msg.contains("existe") || msg.contains("no encontrado") || msg.contains("requerido") || msg.contains("inválid") || msg.contains("invalida")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        }
+        
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
@@ -41,8 +47,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneral(Exception ex) {
-        log.error("Error inesperado: {}", ex.getMessage(), ex);
+        log.error("Error no controlado: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("status", "ERROR", "message", "Error interno del servidor"));
+                .body(Map.of("status", "ERROR", "message", ex.getMessage() != null ? ex.getMessage() : "Error interno del servidor"));
     }
 }

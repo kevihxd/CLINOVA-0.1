@@ -13,6 +13,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Boolean existsByUsername(String username);
     Optional<Usuario> findByPersona_NumeroDocumento(String numeroDocumento);
 
-    @Query("SELECT DISTINCT u FROM Usuario u LEFT JOIN FETCH u.persona LEFT JOIN FETCH u.cargo LEFT JOIN FETCH u.hojaVida hv ORDER BY u.id DESC")
+    @Query("SELECT DISTINCT u FROM Usuario u LEFT JOIN FETCH u.persona LEFT JOIN FETCH u.cargo ORDER BY u.id DESC")
     List<Usuario> findAllOptimized();
 }

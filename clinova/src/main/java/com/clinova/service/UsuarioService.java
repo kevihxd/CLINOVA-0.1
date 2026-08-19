@@ -158,50 +158,85 @@ public class UsuarioService {
 
     @Transactional
     public Usuario crearUsuario(UsuarioRequestDTO dto) {
-        if (usuarioRepository.existsByUsername(dto.getUsername())) {
-            throw new RuntimeException("El nombre de usuario ya existe");
+        String username = dto.getUsername() != null && !dto.getUsername().trim().isEmpty() 
+                ? dto.getUsername().trim() 
+                : (dto.getNumeroDocumento() != null ? dto.getNumeroDocumento().trim() : null);
+
+        if (username == null || username.isEmpty()) {
+            throw new IllegalArgumentException("El nombre de usuario o documento es requerido");
+        }
+
+        if (usuarioRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("El nombre de usuario o documento ya se encuentra registrado: " + username);
         }
 
         Cargo cargo = null;
         if (dto.getCargoId() != null) {
-            cargo = cargoRepository.findById(dto.getCargoId())
-                    .orElseThrow(() -> new RuntimeException("Cargo no encontrado"));
+            cargo = cargoRepository.findById(dto.getCargoId()).orElse(null);
         }
 
-        Persona persona = Persona.builder()
-                .tipoDocumento(dto.getTipoDocumento())
-                .numeroDocumento(dto.getNumeroDocumento())
-                .primerNombre(dto.getPrimerNombre())
-                .segundoNombre(dto.getSegundoNombre())
-                .primerApellido(dto.getPrimerApellido())
-                .segundoApellido(dto.getSegundoApellido())
-                .fechaNacimiento(dto.getFechaNacimiento())
-                .direccionResidencia(dto.getDireccionResidencia())
-                .numeroTelefono(dto.getNumeroTelefono())
-                .lugarNacimiento(dto.getLugarNacimiento())
-                .correoElectronico(dto.getCorreoElectronico())
-                .perfilVacunacion(dto.getPerfilVacunacion())
-                .build();
+        String docNum = dto.getNumeroDocumento() != null ? dto.getNumeroDocumento().trim() : username;
 
-        personaRepository.save(persona);
+        // Reutilizar persona si ya existe por número de documento
+        Persona persona = personaRepository.findByNumeroDocumento(docNum).orElse(null);
+        if (persona == null) {
+            persona = Persona.builder()
+                    .tipoDocumento(dto.getTipoDocumento() != null ? dto.getTipoDocumento() : "CC")
+                    .numeroDocumento(docNum)
+                    .primerNombre(dto.getPrimerNombre())
+                    .segundoNombre(dto.getSegundoNombre())
+                    .primerApellido(dto.getPrimerApellido())
+                    .segundoApellido(dto.getSegundoApellido())
+                    .fechaNacimiento(dto.getFechaNacimiento())
+                    .direccionResidencia(dto.getDireccionResidencia())
+                    .numeroTelefono(dto.getNumeroTelefono())
+                    .lugarNacimiento(dto.getLugarNacimiento())
+                    .correoElectronico(dto.getCorreoElectronico())
+                    .perfilVacunacion(dto.getPerfilVacunacion())
+                    .build();
+            persona = personaRepository.save(persona);
+        } else {
+            // Actualizar datos básicos si vienen en el request
+            if (dto.getPrimerNombre() != null) persona.setPrimerNombre(dto.getPrimerNombre());
+            if (dto.getPrimerApellido() != null) persona.setPrimerApellido(dto.getPrimerApellido());
+            if (dto.getCorreoElectronico() != null) persona.setCorreoElectronico(dto.getCorreoElectronico());
+            persona = personaRepository.save(persona);
+        }
+
+        String rawPassword = dto.getPassword() != null && !dto.getPassword().trim().isEmpty() 
+                ? dto.getPassword().trim() 
+                : username;
+
+        Role roleEnum = Role.USER;
+        if (dto.getRol() != null && !dto.getRol().trim().isEmpty()) {
+            try {
+                roleEnum = Role.valueOf(dto.getRol().trim().toUpperCase());
+            } catch (Exception ignored) {}
+        }
 
         Usuario usuario = Usuario.builder()
-                .username(dto.getUsername())
-                .password(passwordEncoder.encode(dto.getPassword()))
-                .rol(Role.valueOf(dto.getRol().toUpperCase()))
+                .username(username)
+                .password(passwordEncoder.encode(rawPassword))
+                .rol(roleEnum)
                 .cargo(cargo)
                 .persona(persona)
+                .requiereCambioPassword(true)
                 .build();
 
         Usuario guardado = usuarioRepository.save(usuario);
-        cursosService.asignarCursosGlobalesAUsuario(guardado);
 
-        // Crear Hoja de Vida asociada
-        String nombres = dto.getPrimerNombre();
+        try {
+            cursosService.asignarCursosGlobalesAUsuario(guardado);
+        } catch (Exception e) {
+            log.warn("No se pudieron asignar cursos globales automáticamente: {}", e.getMessage());
+        }
+
+        // Vincular o crear Hoja de Vida asociada
+        String nombres = dto.getPrimerNombre() != null ? dto.getPrimerNombre().trim() : "";
         if (dto.getSegundoNombre() != null && !dto.getSegundoNombre().trim().isEmpty()) {
             nombres += " " + dto.getSegundoNombre().trim();
         }
-        String apellidos = dto.getPrimerApellido();
+        String apellidos = dto.getPrimerApellido() != null ? dto.getPrimerApellido().trim() : "";
         if (dto.getSegundoApellido() != null && !dto.getSegundoApellido().trim().isEmpty()) {
             apellidos += " " + dto.getSegundoApellido().trim();
         }
@@ -221,41 +256,54 @@ public class UsuarioService {
             fechaIngreso = LocalDate.now();
         }
 
-        String currentUser = null;
+        String currentUser = "Sistema";
         try {
-            currentUser = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
-        } catch (Exception e) {
-            currentUser = "Sistema";
-        }
+            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null) {
+                currentUser = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            }
+        } catch (Exception ignored) {}
 
-        HojaVida hojaVida = HojaVida.builder()
-                .nombres(nombres)
-                .apellidos(apellidos)
-                .cedula(dto.getNumeroDocumento())
-                .fechaNacimiento(parseLocalDate(dto.getFechaNacimiento()))
-                .direccionResidencia(dto.getDireccionResidencia())
-                .telefono(dto.getNumeroTelefono())
-                .arl(dto.getArl())
-                .eps(dto.getEps())
-                .afp(dto.getAfp())
-                .cajaCompensacion(dto.getCajaCompensacion())
-                .salario(dto.getSalario())
-                .subsidioTransporte(dto.getSubsidioTransporte())
-                .fechaIngreso(fechaIngreso)
-                .estado(dto.getEstado())
-                .tipoContrato(dto.getTipoContrato())
-                .fechaRetiro(parseLocalDate(dto.getFechaRetiro()))
-                .motivoRetiro(dto.getMotivoRetiro())
-                .correoElectronico(dto.getCorreoElectronico())
-                .pesv(dto.getPesvFecha())
-                .perfilVacunacion(dto.getPerfilVacunacion())
-                .responsableEvaluacionId(dto.getResponsableEvaluacionId())
-                .usuario(guardado)
-                .cargos(cargosList)
-                .sedes(sedes)
-                .fechaUltimaEdicion(LocalDateTime.now())
-                .usuarioUltimaEdicion(currentUser)
-                .build();
+        HojaVida hojaVida = hojaVidaRepository.findByCedula(docNum).orElse(null);
+        if (hojaVida == null) {
+            hojaVida = HojaVida.builder()
+                    .nombres(nombres)
+                    .apellidos(apellidos)
+                    .cedula(docNum)
+                    .fechaNacimiento(parseLocalDate(dto.getFechaNacimiento()))
+                    .direccionResidencia(dto.getDireccionResidencia())
+                    .telefono(dto.getNumeroTelefono())
+                    .arl(dto.getArl())
+                    .eps(dto.getEps())
+                    .afp(dto.getAfp())
+                    .cajaCompensacion(dto.getCajaCompensacion())
+                    .salario(dto.getSalario())
+                    .subsidioTransporte(dto.getSubsidioTransporte())
+                    .fechaIngreso(fechaIngreso)
+                    .estado(dto.getEstado() != null ? dto.getEstado() : "ACTIVO")
+                    .tipoContrato(dto.getTipoContrato())
+                    .fechaRetiro(parseLocalDate(dto.getFechaRetiro()))
+                    .motivoRetiro(dto.getMotivoRetiro())
+                    .correoElectronico(dto.getCorreoElectronico())
+                    .pesv(dto.getPesvFecha())
+                    .perfilVacunacion(dto.getPerfilVacunacion())
+                    .responsableEvaluacionId(dto.getResponsableEvaluacionId())
+                    .usuario(guardado)
+                    .cargos(cargosList)
+                    .sedes(sedes)
+                    .fechaUltimaEdicion(LocalDateTime.now())
+                    .usuarioUltimaEdicion(currentUser)
+                    .build();
+        } else {
+            hojaVida.setUsuario(guardado);
+            if (cargo != null && (hojaVida.getCargos() == null || hojaVida.getCargos().isEmpty())) {
+                hojaVida.setCargos(cargosList);
+            }
+            if (!sedes.isEmpty() && (hojaVida.getSedes() == null || hojaVida.getSedes().isEmpty())) {
+                hojaVida.setSedes(sedes);
+            }
+            hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
+            hojaVida.setUsuarioUltimaEdicion(currentUser);
+        }
 
         hojaVidaRepository.save(hojaVida);
 
