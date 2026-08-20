@@ -39,7 +39,8 @@ public class HojaVidaService {
     private final SedeRepository sedeRepository;
     private final HojaVidaHistorialService historialService;
 
-    private final Path rootLocation = Paths.get("uploads/fotos");
+    private static final String UPLOADS_DIR = System.getenv().getOrDefault("UPLOADS_ROOT_PATH", "uploads");
+    private final Path rootLocation = Paths.get(UPLOADS_DIR, "fotos").toAbsolutePath().normalize();
 
     @PostConstruct
     public void init() {
