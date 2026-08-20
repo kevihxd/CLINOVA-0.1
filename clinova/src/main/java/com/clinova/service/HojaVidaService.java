@@ -193,7 +193,10 @@ public class HojaVidaService {
                 .orElseThrow(() -> new RuntimeException("Hoja de vida no encontrada"));
 
         try {
-            String nombreArchivo = UUID.randomUUID().toString() + "_" + archivo.getOriginalFilename();
+            String originalName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "foto.jpg";
+            // Sanitizar nombre de archivo para evitar errores 404 por espacios o caracteres especiales
+            String cleanName = originalName.replaceAll("[^a-zA-Z0-9._-]", "_");
+            String nombreArchivo = UUID.randomUUID().toString() + "_" + cleanName;
             Path destino = this.rootLocation.resolve(nombreArchivo).normalize();
 
             Files.createDirectories(destino.getParent());
