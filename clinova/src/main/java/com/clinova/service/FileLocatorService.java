@@ -58,10 +58,6 @@ public class FileLocatorService {
             Files.walkFileTree(rootUploads, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                    String dirName = dir.getFileName().toString().toLowerCase();
-                    if ("hdv_documentos".equals(dirName) || "hdv_fotos".equals(dirName)) {
-                        return FileVisitResult.SKIP_SUBTREE;
-                    }
                     return FileVisitResult.CONTINUE;
                 }
 
