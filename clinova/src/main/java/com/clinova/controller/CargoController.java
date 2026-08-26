@@ -169,7 +169,15 @@ public class CargoController {
                     .setParameter("id", id)
                     .executeUpdate();
 
-            // 5. Eliminar el registro del cargo
+            // 5. Eliminar asociaciones en grupos de distribución y hojas de vida si existen
+            try {
+                entityManager.createNativeQuery("DELETE FROM grupo_distribucion_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
+            try {
+                entityManager.createNativeQuery("DELETE FROM hoja_vida_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
+
+            // 6. Eliminar el registro del cargo
             cargoRepository.delete(cargo);
 
             return ResponseEntity.ok().build();
