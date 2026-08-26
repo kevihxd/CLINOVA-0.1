@@ -107,21 +107,28 @@ public class Documento {
                 if (tIdx > 0) clean = clean.substring(0, tIdx);
 
                 java.time.LocalDate fecha = null;
-                if (clean.contains("/")) {
-                    String[] parts = clean.split("/");
-                    if (parts.length == 3) {
-                        int p0 = Integer.parseInt(parts[0]);
-                        int p1 = Integer.parseInt(parts[1]);
-                        int p2 = Integer.parseInt(parts[2]);
-                        fecha = (p0 > 1000) ? java.time.LocalDate.of(p0, p1, p2) : java.time.LocalDate.of(p2, p1, p0);
+                String[] parts = clean.split("[/-]");
+                if (parts.length == 3) {
+                    int p0 = Integer.parseInt(parts[0]);
+                    int p1 = Integer.parseInt(parts[1]);
+                    int p2 = Integer.parseInt(parts[2]);
+
+                    int year, month, day;
+                    if (p0 > 1000) {
+                        year = p0;
+                        if (p1 > 12) { day = p1; month = p2; }
+                        else { month = p1; day = p2; }
+                    } else if (p2 > 1000) {
+                        year = p2;
+                        if (p0 > 12) { day = p0; month = p1; }
+                        else if (p1 > 12) { day = p1; month = p0; }
+                        else { day = p0; month = p1; }
+                    } else {
+                        year = 0; month = 0; day = 0;
                     }
-                } else if (clean.contains("-")) {
-                    String[] parts = clean.split("-");
-                    if (parts.length == 3) {
-                        int p0 = Integer.parseInt(parts[0]);
-                        int p1 = Integer.parseInt(parts[1]);
-                        int p2 = Integer.parseInt(parts[2]);
-                        fecha = (p0 > 1000) ? java.time.LocalDate.of(p0, p1, p2) : java.time.LocalDate.of(p2, p1, p0);
+
+                    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                        fecha = java.time.LocalDate.of(year, month, day);
                     }
                 }
 
