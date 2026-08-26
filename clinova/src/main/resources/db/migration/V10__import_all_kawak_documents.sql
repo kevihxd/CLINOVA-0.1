@@ -1,7 +1,5 @@
 -- MIGRACION EXACTA 1:1 DE LOS 1698 DOCUMENTOS OBSOLETOS DE KAWAK
 SET FOREIGN_KEY_CHECKS = 0;
-ALTER TABLE clinova_db.documentos ADD COLUMN IF NOT EXISTS confidencialidad VARCHAR(100) DEFAULT 'Interno';
-ALTER TABLE clinova_db.documentos ADD COLUMN IF NOT EXISTS normas VARCHAR(100) DEFAULT '1-ISO 9001:2015';
 INSERT INTO clinova_db.documentos (id, codigo, nombre, estado, version, ubicacion, tipo, proceso, sede, fecha_elaboracion, fecha_revision, fecha_aprobacion, alcance, meses_revision, descripcion, kawak_id, confidencialidad, normas) VALUES
 (1, 'PSIAU-CAR-1', 'CARACTERIZACIÓN DE PROCESO SIAU', 'OBSOLETO', '1', 'KAWAK', 'CARACTERIZACIÓN', 'SIAU', 'IPS CLINICAL HOUSE', '13/09/2023', '13/09/2023', '13/09/2023', 'A toda la organización', 12, 'Reemplazado por nueva version de documento', '1', 'Interno', '1-ISO 9001:2015'),
 (2, 'PSIAU-FO-2', 'APERTURADE BUZÓN', 'OBSOLETO', '2', 'KAWAK', 'FORMATO', 'SIAU', 'IPS CLINICAL HOUSE', '13/09/2023', '13/09/2023', '13/09/2023', 'A toda la organización', 12, 'Reemplazado por nueva version de documento', '2', 'Interno', '1-ISO 9001:2015'),
