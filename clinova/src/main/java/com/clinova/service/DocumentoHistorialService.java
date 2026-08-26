@@ -1,14 +1,15 @@
 package com.clinova.service;
 
 import com.clinova.dto.DocumentoHistorialDTO;
-import com.clinova.entity.DocumentoHistorial;
-import com.clinova.entity.Usuario;
+import com.clinova.entity.Documento;
 import com.clinova.repository.DocumentoHistorialRepository;
+import com.clinova.repository.DocumentoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 public class DocumentoHistorialService {
 
     private final DocumentoHistorialRepository repository;
+    private final DocumentoRepository documentoRepository;
 
     @Transactional
     public void registrarHistorial(Long documentoId, String accion, String descripcion, Usuario usuario) {
@@ -51,7 +53,20 @@ public class DocumentoHistorialService {
 
     @Transactional(readOnly = true)
     public List<DocumentoHistorialDTO> obtenerHistorialPorDocumento(Long documentoId) {
-        return repository.findByDocumentoIdOrderByFechaDesc(documentoId).stream()
+        List<Long> docIds = new ArrayList<>();
+        docIds.add(documentoId);
+
+        Documento doc = documentoRepository.findById(documentoId).orElse(null);
+        if (doc != null && doc.getCodigo() != null && !doc.getCodigo().isBlank()) {
+            List<Documento> relacionados = documentoRepository.findAllByCodigo(doc.getCodigo());
+            for (Documento d : relacionados) {
+                if (!docIds.contains(d.getId())) {
+                    docIds.add(d.getId());
+                }
+            }
+        }
+
+        return repository.findByDocumentoIdInOrderByFechaDesc(docIds).stream()
                 .map(log -> new DocumentoHistorialDTO(
                         log.getId(),
                         log.getDocumentoId(),
