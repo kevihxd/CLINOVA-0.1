@@ -22,6 +22,8 @@ public class Documento {
     private String alcance;
     private String codigo;
     private String confidencialidad;
+    @Column(columnDefinition = "LONGTEXT")
+    private String descripcion;
     private String estado;
 
     @Column(name = "meses_revision")
