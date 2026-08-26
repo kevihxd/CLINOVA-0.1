@@ -143,6 +143,11 @@ public class DocumentoController {
             @AuthenticationPrincipal Usuario usuario) {
         try {
             Documento doc = repository.findById(id).orElseThrow();
+            String oldVersion = doc.getVersion();
+            String oldClean = (oldVersion != null) ? oldVersion.replaceAll("[^0-9]", "").trim() : "";
+            String newClean = (cambios.getVersion() != null) ? cambios.getVersion().replaceAll("[^0-9]", "").trim() : "";
+            boolean isNewVersion = !newClean.isEmpty() && !oldClean.isEmpty() && !newClean.equals(oldClean);
+
             if (cambios.getNombre() != null) doc.setNombre(cambios.getNombre());
             if (cambios.getTipo() != null) doc.setTipo(cambios.getTipo());
             if (cambios.getProceso() != null) doc.setProceso(cambios.getProceso());
@@ -164,9 +169,89 @@ public class DocumentoController {
             if (cambios.getFechaElaboracion() != null) doc.setFechaElaboracion(cambios.getFechaElaboracion());
             if (cambios.getFechaRevision() != null) doc.setFechaRevision(cambios.getFechaRevision());
             if (cambios.getFechaAprobacion() != null) doc.setFechaAprobacion(cambios.getFechaAprobacion());
+            if (cambios.getUbicacion() != null) doc.setUbicacion(cambios.getUbicacion());
+
             Documento guardado = repository.save(doc);
-            historialService.registrarHistorial(id, "MODIFICACION", "Documento modificado", usuario);
+
+            if (isNewVersion) {
+                historialService.registrarHistorial(id, "CREACION_VERSION", "Actualización e implementación de la versión " + cambios.getVersion(), usuario, cambios.getVersion());
+            } else {
+                historialService.registrarHistorial(id, "MODIFICACION", "Documento modificado", usuario);
+            }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento actualizado", guardado));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/{id}/nueva-version")
+    public ResponseEntity<StructureResponses<Documento>> nuevaVersion(
+            @PathVariable Long id,
+            @RequestParam(value = "controlCambios", required = false) String controlCambios,
+            @RequestParam(value = "archivo", required = false) MultipartFile archivo,
+            @RequestParam(value = "archivoPdf", required = false) MultipartFile archivoPdf,
+            @RequestParam(value = "elabora", required = false) String elabora,
+            @RequestParam(value = "revisa", required = false) String revisa,
+            @RequestParam(value = "aprueba", required = false) String aprueba,
+            @RequestParam(value = "visualizacion", required = false) String visualizacion,
+            @RequestParam(value = "impresion", required = false) String impresion,
+            @RequestParam(value = "descargaOriginal", required = false) String descargaOriginal,
+            @RequestParam(value = "descargaPdf", required = false) String descargaPdf,
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Documento doc = repository.findById(id).orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+
+            // Incrementar número de versión
+            int vNum = 1;
+            try {
+                if (doc.getVersion() != null) {
+                    vNum = Integer.parseInt(doc.getVersion().replaceAll("[^0-9]", ""));
+                }
+            } catch(Exception ignored) {}
+            vNum++;
+            String nuevaVerStr = String.valueOf(vNum);
+            doc.setVersion(nuevaVerStr);
+
+            if (archivo != null && !archivo.isEmpty()) {
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
+                String nombreArchivo = UUID.randomUUID() + "_" + archivo.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
+                Files.copy(archivo.getInputStream(), folder.resolve(nombreArchivo), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                doc.setUbicacion(nombreArchivo);
+                doc.setRutaArchivoLocal(nombreArchivo);
+            }
+
+            if (archivoPdf != null && !archivoPdf.isEmpty()) {
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
+                String nombrePdf = UUID.randomUUID() + "_" + archivoPdf.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
+                Files.copy(archivoPdf.getInputStream(), folder.resolve(nombrePdf), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                doc.setUbicacionPdf(nombrePdf);
+                if (doc.getRutaArchivoLocal() == null || doc.getRutaArchivoLocal().isEmpty()) {
+                    doc.setRutaArchivoLocal(nombrePdf);
+                }
+            }
+
+            if (elabora != null) doc.setElabora(elabora);
+            if (revisa != null) doc.setRevisa(revisa);
+            if (aprueba != null) doc.setAprueba(aprueba);
+            if (visualizacion != null) doc.setVisualizacion(visualizacion);
+            if (impresion != null) doc.setImpresion(impresion);
+            if (descargaOriginal != null) doc.setDescargaOriginal(descargaOriginal);
+            if (descargaPdf != null) doc.setDescargaPdf(descargaPdf);
+
+            String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            doc.setFechaRevision(fechaHoy);
+            doc.setEstado("EN REVISIÓN");
+
+            Documento guardado = repository.save(doc);
+
+            String descLog = (controlCambios != null && !controlCambios.trim().isEmpty()) 
+                    ? controlCambios.trim() 
+                    : "Creación de la nueva versión " + nuevaVerStr;
+            historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", descLog, usuario, nuevaVerStr);
+
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Nueva versión creada exitosamente", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
@@ -181,6 +266,37 @@ public class DocumentoController {
             Documento guardado = repository.save(doc);
             historialService.registrarHistorial(id, "APROBACION", "Documento aprobado y publicado como VIGENTE", usuario);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Aprobado", guardado));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/{id}/obsoleto")
+    public ResponseEntity<StructureResponses<Documento>> marcarObsoleto(
+            @PathVariable Long id, 
+            @RequestParam(value = "motivo", required = false, defaultValue = "Documento marcado como obsoleto por el administrador") String motivo,
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Documento doc = repository.findById(id).orElseThrow();
+            doc.setEstado("OBSOLETO");
+            Documento guardado = repository.save(doc);
+            historialService.registrarHistorial(id, "OBSOLETO", "Documento pasado a OBSOLETO: " + motivo, usuario);
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento marcado como OBSOLETO", guardado));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/{id}/restaurar")
+    public ResponseEntity<StructureResponses<Documento>> restaurarObsoleto(
+            @PathVariable Long id, 
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Documento doc = repository.findById(id).orElseThrow();
+            doc.setEstado("VIGENTE");
+            Documento guardado = repository.save(doc);
+            historialService.registrarHistorial(id, "RESTAURACION", "Documento restaurado a VIGENTE desde OBSOLETO", usuario);
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento restaurado a VIGENTE", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
@@ -256,8 +372,22 @@ public class DocumentoController {
 
                 historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
 
+                String ext = "";
+                String diskName = file.getFileName().toString();
+                int lastDot = diskName.lastIndexOf('.');
+                if (lastDot > 0) {
+                    ext = diskName.substring(lastDot);
+                }
+
+                String codigoPrefix = (doc.getCodigo() != null && !doc.getCodigo().isBlank() && !"--".equals(doc.getCodigo().trim())) 
+                        ? doc.getCodigo().trim() + " - " : "";
+                String docNombre = doc.getNombre() != null && !doc.getNombre().isBlank() ? doc.getNombre().trim() : "documento";
+                String displayFilename = codigoPrefix + docNombre + ext;
+                String safeFilename = displayFilename.replaceAll("[\\\\/:*?\"<>|]", "_");
+                String encodedFilename = java.net.URLEncoder.encode(safeFilename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFileName().toString() + "\"")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeFilename + "\"; filename*=UTF-8''" + encodedFilename)
                         .header(HttpHeaders.CONTENT_TYPE, contentType)
                         .body(resource);
             } else {

@@ -20,7 +20,7 @@ public interface HojaVidaRepository extends JpaRepository<HojaVida, Long> {
      * Carga todas las hojas de vida con sus colecciones en una sola query (evita N+1).
      * Ordenadas de más reciente a más antigua.
      */
-    @EntityGraph(attributePaths = {"cargos"})
+    @EntityGraph(attributePaths = {"cargos", "sedes", "usuario"})
     @Query("SELECT h FROM HojaVida h ORDER BY h.id DESC")
     List<HojaVida> findAllWithDetails();
 }

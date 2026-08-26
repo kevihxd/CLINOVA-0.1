@@ -20,12 +20,18 @@ public class DocumentoHistorialService {
 
     @Transactional
     public void registrarHistorial(Long documentoId, String accion, String descripcion, Usuario usuario) {
+        registrarHistorial(documentoId, accion, descripcion, usuario, null);
+    }
+
+    @Transactional
+    public void registrarHistorial(Long documentoId, String accion, String descripcion, Usuario usuario, String version) {
         String username = (usuario != null) ? usuario.getUsername() : "Sistema";
         DocumentoHistorial log = DocumentoHistorial.builder()
                 .documentoId(documentoId)
                 .accion(accion)
                 .descripcion(descripcion)
                 .usuario(username)
+                .version(version)
                 .fecha(LocalDateTime.now())
                 .build();
         repository.save(log);

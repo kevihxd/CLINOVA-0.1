@@ -93,13 +93,44 @@ public class Documento {
 
     @PostLoad
     private void calcularDiasFaltantes() {
-        if (this.fechaAprobacion != null && !this.fechaAprobacion.trim().isEmpty() && this.mesesRevision != null) {
+        String fechaBase = (fechaAprobacion != null && !fechaAprobacion.trim().isEmpty()) ? fechaAprobacion
+                : (fechaRevision != null && !fechaRevision.trim().isEmpty()) ? fechaRevision
+                : fechaElaboracion;
+        int meses = (mesesRevision != null && mesesRevision > 0) ? mesesRevision : 12;
+
+        if (fechaBase != null && !fechaBase.trim().isEmpty() && !"N/A".equalsIgnoreCase(fechaBase.trim())) {
             try {
-                // Suponiendo formato dd/MM/yyyy
-                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                java.time.LocalDate fechaAprob = java.time.LocalDate.parse(this.fechaAprobacion, formatter);
-                java.time.LocalDate vencimiento = fechaAprob.plusMonths(this.mesesRevision);
-                this.diasFaltantes = (int) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), vencimiento);
+                String clean = fechaBase.trim();
+                int spaceIdx = clean.indexOf(' ');
+                if (spaceIdx > 0) clean = clean.substring(0, spaceIdx);
+                int tIdx = clean.indexOf('T');
+                if (tIdx > 0) clean = clean.substring(0, tIdx);
+
+                java.time.LocalDate fecha = null;
+                if (clean.contains("/")) {
+                    String[] parts = clean.split("/");
+                    if (parts.length == 3) {
+                        int p0 = Integer.parseInt(parts[0]);
+                        int p1 = Integer.parseInt(parts[1]);
+                        int p2 = Integer.parseInt(parts[2]);
+                        fecha = (p0 > 1000) ? java.time.LocalDate.of(p0, p1, p2) : java.time.LocalDate.of(p2, p1, p0);
+                    }
+                } else if (clean.contains("-")) {
+                    String[] parts = clean.split("-");
+                    if (parts.length == 3) {
+                        int p0 = Integer.parseInt(parts[0]);
+                        int p1 = Integer.parseInt(parts[1]);
+                        int p2 = Integer.parseInt(parts[2]);
+                        fecha = (p0 > 1000) ? java.time.LocalDate.of(p0, p1, p2) : java.time.LocalDate.of(p2, p1, p0);
+                    }
+                }
+
+                if (fecha != null) {
+                    java.time.LocalDate vencimiento = fecha.plusMonths(meses);
+                    this.diasFaltantes = (int) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), vencimiento);
+                } else {
+                    this.diasFaltantes = null;
+                }
             } catch (Exception e) {
                 this.diasFaltantes = null;
             }

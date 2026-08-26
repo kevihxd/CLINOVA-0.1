@@ -75,7 +75,12 @@ public class UsuarioService {
                 personaMap.put("direccionResidencia", u.getPersona().getDireccionResidencia());
                 personaMap.put("numeroTelefono", u.getPersona().getNumeroTelefono());
                 personaMap.put("lugarNacimiento", u.getPersona().getLugarNacimiento());
-                personaMap.put("correoElectronico", u.getPersona().getCorreoElectronico());
+                String mailPersona = u.getPersona().getCorreoElectronico();
+                String mailHv = u.getHojaVida() != null ? u.getHojaVida().getCorreoElectronico() : null;
+                String realHv = sanitizarCorreo(mailHv, u.getUsername(), u.getPersona().getNumeroDocumento());
+                String realP = sanitizarCorreo(mailPersona, u.getUsername(), u.getPersona().getNumeroDocumento());
+                String finalCorreo = realHv != null ? realHv : (realP != null ? realP : (mailHv != null && !mailHv.isBlank() ? mailHv : mailPersona));
+                personaMap.put("correoElectronico", finalCorreo);
                 personaMap.put("perfilVacunacion", u.getPersona().getPerfilVacunacion());
             }
             map.put("persona", personaMap);
@@ -191,7 +196,7 @@ public class UsuarioService {
                     .direccionResidencia(dto.getDireccionResidencia())
                     .numeroTelefono(dto.getNumeroTelefono())
                     .lugarNacimiento(dto.getLugarNacimiento())
-                    .correoElectronico(dto.getCorreoElectronico())
+                    .correoElectronico(sanitizarCorreo(dto.getCorreoElectronico(), username, docNum))
                     .perfilVacunacion(dto.getPerfilVacunacion())
                     .build();
             persona = personaRepository.save(persona);
@@ -199,7 +204,7 @@ public class UsuarioService {
             // Actualizar datos básicos si vienen en el request
             if (dto.getPrimerNombre() != null) persona.setPrimerNombre(dto.getPrimerNombre());
             if (dto.getPrimerApellido() != null) persona.setPrimerApellido(dto.getPrimerApellido());
-            if (dto.getCorreoElectronico() != null) persona.setCorreoElectronico(dto.getCorreoElectronico());
+            if (dto.getCorreoElectronico() != null) persona.setCorreoElectronico(sanitizarCorreo(dto.getCorreoElectronico(), username, docNum));
             persona = personaRepository.save(persona);
         }
 
@@ -357,7 +362,7 @@ public class UsuarioService {
         pExistente.setDireccionResidencia(dto.getDireccionResidencia());
         pExistente.setNumeroTelefono(dto.getNumeroTelefono());
         pExistente.setLugarNacimiento(dto.getLugarNacimiento());
-        pExistente.setCorreoElectronico(dto.getCorreoElectronico());
+        pExistente.setCorreoElectronico(sanitizarCorreo(dto.getCorreoElectronico(), usuarioExistente.getUsername(), dto.getNumeroDocumento()));
         pExistente.setPerfilVacunacion(dto.getPerfilVacunacion());
 
         personaRepository.save(pExistente);
@@ -424,7 +429,7 @@ public class UsuarioService {
         hojaVida.setTipoContrato(dto.getTipoContrato());
         hojaVida.setFechaRetiro(parseLocalDate(dto.getFechaRetiro()));
         hojaVida.setMotivoRetiro(dto.getMotivoRetiro());
-        hojaVida.setCorreoElectronico(dto.getCorreoElectronico());
+        hojaVida.setCorreoElectronico(sanitizarCorreo(dto.getCorreoElectronico(), usuarioExistente.getUsername(), dto.getNumeroDocumento()));
         hojaVida.setPesv(dto.getPesvFecha());
         hojaVida.setPerfilVacunacion(dto.getPerfilVacunacion());
         hojaVida.setResponsableEvaluacionId(dto.getResponsableEvaluacionId());
@@ -516,5 +521,21 @@ public class UsuarioService {
             if (upper.contains("LIDER")) return Role.LIDER_DE_PROCESO;
             return Role.USER;
         }
+    }
+
+    public String sanitizarCorreo(String email, String username, String docNum) {
+        if (email == null || email.trim().isEmpty()) return null;
+        String clean = email.trim().toLowerCase();
+        if (!clean.contains("@")) return null;
+        String localPart = clean.split("@")[0];
+
+        String u = username != null ? username.trim().toLowerCase() : "";
+        String d = docNum != null ? docNum.trim().toLowerCase() : "";
+
+        if (!u.isEmpty() && localPart.equals(u)) return null;
+        if (!d.isEmpty() && localPart.equals(d)) return null;
+        if (localPart.matches("^\\d+$")) return null;
+
+        return email.trim();
     }
 }

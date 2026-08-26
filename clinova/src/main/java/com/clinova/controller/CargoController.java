@@ -138,4 +138,17 @@ public class CargoController {
             return ResponseEntity.internalServerError().body("Error al actualizar permisos: " + e.getMessage());
         }
     }
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<?> eliminarCargo(@PathVariable Long id) {
+        try {
+            Cargo cargo = cargoRepository.findById(id).orElse(null);
+            if (cargo == null) return ResponseEntity.notFound().build();
+            cargoRepository.delete(cargo);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error al eliminar cargo: " + e.getMessage());
+        }
+    }
 }

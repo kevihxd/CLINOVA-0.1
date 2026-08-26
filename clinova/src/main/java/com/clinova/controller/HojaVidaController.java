@@ -29,7 +29,12 @@ public class HojaVidaController {
 
     @GetMapping
     public ResponseEntity<List<HojaVidaResponseDTO>> listarTodas() {
-        return ResponseEntity.ok(hojaVidaService.obtenerTodasLasHojasDeVida());
+        try {
+            return ResponseEntity.ok(hojaVidaService.obtenerTodasLasHojasDeVida());
+        } catch (Exception e) {
+            log.error("Error al listar las hojas de vida en HojaVidaController: {}", e.getMessage(), e);
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @GetMapping("/{id}")

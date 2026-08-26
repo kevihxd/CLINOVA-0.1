@@ -20,17 +20,35 @@ public class PerfilCargo {
     @JoinColumn(name = "cargo_id", nullable = false, unique = true)
     private Cargo cargo;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(length = 255)
+    private String jefeInmediato;
+
+    @Column(length = 50)
+    private String version = "1";
+
+    @Column(length = 100)
+    private String fecha;
+
+    @Column(columnDefinition = "LONGTEXT")
     private String mision;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String responsabilidades;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String requisitosEducacion;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
+    private String requisitosFormacion;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String requisitosHabilidades;
+
+    @Column(columnDefinition = "LONGTEXT")
     private String requisitosExperiencia;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String versiones;
 
     private String estado = "ACTIVO";
 }

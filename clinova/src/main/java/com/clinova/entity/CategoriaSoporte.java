@@ -18,4 +18,8 @@ public class CategoriaSoporte {
 
     @Column(nullable = false, unique = true)
     private String nombre;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean visible = true;
 }
