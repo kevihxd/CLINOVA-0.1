@@ -386,8 +386,10 @@ public class DocumentoController {
                 String safeFilename = displayFilename.replaceAll("[\\\\/:*?\"<>|]", "_");
                 String encodedFilename = java.net.URLEncoder.encode(safeFilename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
 
+                String disposition = ("pdf".equalsIgnoreCase(tipo) || filename.endsWith(".pdf")) ? "inline" : "attachment";
+
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"" + safeFilename + "\"; filename*=UTF-8''" + encodedFilename)
                         .header(HttpHeaders.CONTENT_TYPE, contentType)
                         .body(resource);
             } else {
