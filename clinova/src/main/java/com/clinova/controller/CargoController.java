@@ -139,15 +139,42 @@ public class CargoController {
         }
     }
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<?> eliminarCargo(@PathVariable Long id) {
         try {
             Cargo cargo = cargoRepository.findById(id).orElse(null);
             if (cargo == null) return ResponseEntity.notFound().build();
+
+            // 1. Desvincular usuarios asociados a este cargo
+            entityManager.createNativeQuery("UPDATE usuarios SET cargo_id = NULL WHERE cargo_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+
+            // 2. Desvincular cargos subordinados que reportaban a este cargo
+            entityManager.createNativeQuery("UPDATE cargos SET reporta_a_id = NULL WHERE reporta_a_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+
+            // 3. Eliminar perfil de cargo si existe
+            entityManager.createNativeQuery("DELETE FROM perfiles_cargo WHERE cargo_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+
+            // 4. Eliminar permisos asociados en tabla intermedia
+            entityManager.createNativeQuery("DELETE FROM cargo_permiso WHERE cargo_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+
+            // 5. Eliminar el registro del cargo
             cargoRepository.delete(cargo);
+
             return ResponseEntity.ok().build();
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.internalServerError().body("Error al eliminar cargo: " + e.getMessage());
         }
     }
