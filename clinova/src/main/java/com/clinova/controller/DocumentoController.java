@@ -614,8 +614,19 @@ public class DocumentoController {
         if (cleanedName.startsWith("/")) cleanedName = cleanedName.substring(1);
         String strippedName = cleanedName.startsWith("data/") ? cleanedName.substring(5) : cleanedName;
 
+        // 1. Probar via FileLocatorService (rutas reales indexadas del sistema Linux)
+        Path fromService = fileLocator.buscarArchivo(cleanedName);
+        if (fromService != null && Files.exists(fromService) && Files.isReadable(fromService)) return fromService;
+
+        fromService = fileLocator.buscarArchivo(strippedName);
+        if (fromService != null && Files.exists(fromService) && Files.isReadable(fromService)) return fromService;
+
+        String baseName = Paths.get(cleanedName).getFileName().toString();
+        fromService = fileLocator.buscarArchivo(baseName);
+        if (fromService != null && Files.exists(fromService) && Files.isReadable(fromService)) return fromService;
+
         try {
-            // 1. Probar la ruta directa unida a rootUploads
+            // 2. Probar rutas directas
             Path directPath = root.resolve(cleanedName).normalize();
             if (Files.exists(directPath) && Files.isRegularFile(directPath)) return directPath;
 
@@ -627,7 +638,7 @@ public class DocumentoController {
         } catch (Exception ignored) {}
 
         try {
-            // 2. Probar como ruta absoluta
+            // 3. Probar como rutas absolutas
             Path absPath = Paths.get(cleanedName);
             if (Files.exists(absPath) && Files.isRegularFile(absPath)) return absPath;
 
@@ -637,39 +648,6 @@ public class DocumentoController {
             Path absPlainPath = Paths.get("/app/uploads/" + strippedName);
             if (Files.exists(absPlainPath) && Files.isRegularFile(absPlainPath)) return absPlainPath;
         } catch (Exception ignored) {}
-
-        // 3. Probar via FileLocatorService (búsqueda en todo el índice en memoria)
-        Path fromService = fileLocator.buscarArchivo(cleanedName);
-        if (fromService != null && Files.exists(fromService)) return fromService;
-
-        fromService = fileLocator.buscarArchivo(strippedName);
-        if (fromService != null && Files.exists(fromService)) return fromService;
-
-        // Extraer nombre de archivo simple para fallback
-        String baseName = Paths.get(cleanedName).getFileName().toString();
-        fromService = fileLocator.buscarArchivo(baseName);
-        if (fromService != null && Files.exists(fromService)) return fromService;
-
-        // 4. Probar subcarpetas conocidas
-        String[] carpetasExtendidas = {
-            "documentos", 
-            "files/Formatos/1", 
-            "files/Documentos/1", 
-            "files/Externos", 
-            "files/Internos", 
-            "soportes/otros_soportes", 
-            "soportes/sin_clasificar", 
-            "certificados", 
-            "fotos", 
-            "soportes"
-        };
-        for (String dir : carpetasExtendidas) {
-            Path path = root.resolve(dir).resolve(baseName).normalize();
-            if (Files.exists(path) && Files.isRegularFile(path)) return path;
-
-            Path dockerPath = Paths.get("/app/uploads").resolve(dir).resolve(baseName).normalize();
-            if (Files.exists(dockerPath) && Files.isRegularFile(dockerPath)) return dockerPath;
-        }
 
         return null;
     }
