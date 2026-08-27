@@ -484,17 +484,18 @@ public class DocumentoController {
             // Probar candidatos de archivo en orden de prioridad
             List<String> candidatos = new ArrayList<>();
             Long kId = doc.getKawakId() != null ? doc.getKawakId() : doc.getId();
+            Long docId = doc.getId();
 
-            // 1. Probar rutas directas de Kawak usando kawak_id
-            candidatos.add("files/Formatos/" + kId + "/" + kId + ".pdf");
-            candidatos.add("files/Formatos/" + kId + "/LMD" + kId + ".pdf");
-            candidatos.add("files/Formatos/" + kId + "/LMR" + kId + ".pdf");
-            candidatos.add("files/Documentos/" + kId + "/" + kId + ".pdf");
-            candidatos.add("files/Documentos/" + kId + "/LMD" + kId + ".pdf");
-            candidatos.add("files/Documentos/" + kId + "/LMR" + kId + ".pdf");
-            candidatos.add("files/Externos/" + kId + "/" + kId + ".pdf");
+            List<String> prefixes = List.of("", "LMD", "LMR", "LMC", "LMP");
+            List<String> subdirs = List.of("files/Formatos/1", "files/Documentos/1", "files/Externos/1", "files/Formatos/" + kId, "files/Documentos/" + kId, "files/Externos/" + kId, "files/Formatos", "files/Documentos", "files/Externos");
 
             if ("pdf".equalsIgnoreCase(tipo)) {
+                for (String dir : subdirs) {
+                    for (String pfx : prefixes) {
+                        candidatos.add(dir + "/" + pfx + kId + ".pdf");
+                        candidatos.add(dir + "/" + pfx + docId + ".pdf");
+                    }
+                }
                 if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
                     candidatos.add(doc.getUbicacionPdf());
                 }
@@ -506,15 +507,17 @@ public class DocumentoController {
                 }
             }
 
-            // Candidatos con kawakId para archivos Office original
-            candidatos.add("files/Formatos/" + kId + "/" + kId + ".docx");
-            candidatos.add("files/Formatos/" + kId + "/" + kId + ".xlsx");
-            candidatos.add("files/Formatos/" + kId + "/" + kId + ".xls");
-            candidatos.add("files/Documentos/" + kId + "/" + kId + ".docx");
-            candidatos.add("files/Documentos/" + kId + "/" + kId + ".xlsx");
-            candidatos.add("files/Externos/" + kId + "/" + kId + ".docx");
+            // Candidatos para archivos Office (xlsx, docx, xls, doc)
+            for (String dir : subdirs) {
+                for (String pfx : prefixes) {
+                    for (String ext : List.of(".xlsx", ".docx", ".xls", ".doc")) {
+                        candidatos.add(dir + "/" + pfx + kId + ext);
+                        candidatos.add(dir + "/" + pfx + docId + ext);
+                    }
+                }
+            }
 
-            // Agregar ubicaciones generales como fallback
+            // Agregar ubicaciones generales registradas en BD como fallback
             if (!isInvalidPath(doc.getRutaArchivoLocal())) candidatos.add(doc.getRutaArchivoLocal());
             if (!isInvalidPath(doc.getUbicacion())) candidatos.add(doc.getUbicacion());
             if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) candidatos.add(doc.getUbicacionPdf());
