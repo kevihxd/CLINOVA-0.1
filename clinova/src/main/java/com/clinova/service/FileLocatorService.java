@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -119,5 +120,26 @@ public class FileLocatorService {
         String fileName = archivoFisico.getFileName().toString().toLowerCase();
         fileIndex.put(fileName, archivoFisico);
         log.info("Nuevo archivo registrado en índice: {}", archivoFisico);
+    }
+
+    public int getIndexSize() {
+        return fileIndex.size();
+    }
+
+    public String getRootUploads() {
+        return rootUploads != null ? rootUploads.toString() : "null";
+    }
+
+    public List<String> findMatchingKeys(String query) {
+        if (query == null || query.isBlank()) return List.of();
+        String q = query.toLowerCase().trim();
+        List<String> results = new ArrayList<>();
+        for (Map.Entry<String, Path> entry : fileIndex.entrySet()) {
+            if (entry.getKey().contains(q) || entry.getValue().toString().toLowerCase().contains(q)) {
+                results.add(entry.getKey() + " -> " + entry.getValue().toString());
+                if (results.size() >= 50) break;
+            }
+        }
+        return results;
     }
 }

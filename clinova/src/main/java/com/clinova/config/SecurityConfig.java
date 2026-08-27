@@ -37,7 +37,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/uploads/**", "/api/uploads/**", "/api/v1/uploads/**").permitAll()
-                        .requestMatchers("/api/v1/documentos/descargar/**", "/api/v1/documentos/*/historial").permitAll()
+                        .requestMatchers("/api/v1/documentos/descargar/**", "/api/v1/documentos/*/historial", "/api/v1/documentos/debug-files").permitAll()
                         .requestMatchers("/api/v1/sedes", "/api/v1/sedes/**").permitAll()
                         .requestMatchers("/api/v1/vacunacion/**").permitAll()
                         .requestMatchers("/api/v1/informes/**").permitAll()

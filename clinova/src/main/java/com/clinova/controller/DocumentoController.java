@@ -23,6 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +99,18 @@ public class DocumentoController {
             log.error("Error al obtener historial para id {}: {}", id, e.getMessage());
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }
+    }
+
+    @GetMapping("/debug-files")
+    public ResponseEntity<?> debugFiles(@RequestParam(value = "q", required = false) String query) {
+        Map<String, Object> debugInfo = new LinkedHashMap<>();
+        debugInfo.put("fileIndexSize", fileLocator.getIndexSize());
+        debugInfo.put("rootUploads", fileLocator.getRootUploads());
+        if (query != null && !query.isBlank()) {
+            debugInfo.put("queryResult", fileLocator.buscarArchivo(query));
+            debugInfo.put("matchingKeys", fileLocator.findMatchingKeys(query));
+        }
+        return ResponseEntity.ok(debugInfo);
     }
 
     @PostMapping
