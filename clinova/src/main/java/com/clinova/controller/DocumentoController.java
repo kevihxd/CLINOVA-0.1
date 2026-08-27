@@ -160,6 +160,10 @@ public class DocumentoController {
             boolean isNewVersion = !newClean.isEmpty() && !oldClean.isEmpty() && !newClean.equals(oldClean);
 
             if (isNewVersion) {
+                String prevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank()) 
+                        ? doc.getControlCambios() 
+                        : (doc.getDescripcion() != null && !doc.getDescripcion().isBlank()) ? doc.getDescripcion() : ("Versión " + oldVersion + " del documento");
+
                 // Clonar versión previa y enviarla a OBSOLETOS
                 Documento obsoletoDoc = Documento.builder()
                         .codigo(doc.getCodigo())
@@ -188,10 +192,15 @@ public class DocumentoController {
                         .rutaArchivoLocal(doc.getRutaArchivoLocal())
                         .ubicacion(doc.getUbicacion())
                         .ubicacionPdf(doc.getUbicacionPdf())
-                        .descripcion("Versión anterior archivada automáticamente")
+                        .controlCambios(prevDesc)
+                        .descripcion(prevDesc)
                         .build();
                 Documento obsoletoGuardado = repository.save(obsoletoDoc);
-                historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", "Versión " + oldVersion + " archivada como obsoleta", usuario, oldVersion);
+                historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", prevDesc, usuario, oldVersion);
+                
+                String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                doc.setFechaRevision(fechaHoy);
+                doc.setFechaAprobacion(fechaHoy);
             }
 
             if (cambios.getNombre() != null) doc.setNombre(cambios.getNombre());
@@ -216,11 +225,18 @@ public class DocumentoController {
             if (cambios.getFechaRevision() != null) doc.setFechaRevision(cambios.getFechaRevision());
             if (cambios.getFechaAprobacion() != null) doc.setFechaAprobacion(cambios.getFechaAprobacion());
             if (cambios.getUbicacion() != null) doc.setUbicacion(cambios.getUbicacion());
+            if (cambios.getControlCambios() != null && !cambios.getControlCambios().isBlank()) {
+                doc.setControlCambios(cambios.getControlCambios());
+                doc.setDescripcion(cambios.getControlCambios());
+            }
 
             Documento guardado = repository.save(doc);
 
             if (isNewVersion) {
-                historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", "Nueva versión " + cambios.getVersion() + " creada e implementada", usuario, cambios.getVersion());
+                String versionComment = (guardado.getControlCambios() != null && !guardado.getControlCambios().isBlank()) 
+                        ? guardado.getControlCambios() 
+                        : ("Nueva versión " + cambios.getVersion() + " creada e implementada");
+                historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", versionComment, usuario, cambios.getVersion());
             } else {
                 historialService.registrarHistorial(guardado.getId(), "MODIFICACION", "Documento modificado", usuario);
             }
@@ -233,6 +249,7 @@ public class DocumentoController {
     @PostMapping("/{id}/nueva-version")
     public ResponseEntity<StructureResponses<Documento>> nuevaVersion(
             @PathVariable Long id,
+            @RequestParam(value = "version", required = false) String version,
             @RequestParam(value = "controlCambios", required = false) String controlCambios,
             @RequestParam(value = "archivo", required = false) MultipartFile archivo,
             @RequestParam(value = "archivoPdf", required = false) MultipartFile archivoPdf,
@@ -288,15 +305,18 @@ public class DocumentoController {
             historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", prevDesc, usuario, oldVersion);
 
             // 2. Incrementar número de versión para el nuevo registro vigente
-            int vNum = 1;
-            try {
-                if (oldVersion != null) {
-                    vNum = Integer.parseInt(oldVersion.replaceAll("[^0-9]", ""));
-                }
-            } catch(Exception ignored) {}
-            vNum++;
-            String nuevaVerStr = String.valueOf(vNum);
-            doc.setVersion(nuevaVerStr);
+            String nuevaVerStr = version;
+            if (nuevaVerStr == null || nuevaVerStr.trim().isEmpty()) {
+                int vNum = 1;
+                try {
+                    if (oldVersion != null) {
+                        vNum = Integer.parseInt(oldVersion.replaceAll("[^0-9]", ""));
+                    }
+                } catch(Exception ignored) {}
+                vNum++;
+                nuevaVerStr = String.valueOf(vNum);
+            }
+            doc.setVersion(nuevaVerStr.trim());
 
             if (archivo != null && !archivo.isEmpty()) {
                 Path folder = this.root.resolve("documentos");
