@@ -63,12 +63,20 @@ public class SecurityConfig {
         if (envOrigins != null && !envOrigins.trim().isEmpty()) {
             configuration.setAllowedOriginPatterns(Arrays.asList(envOrigins.split(",")));
         } else {
-            configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+            configuration.setAllowedOriginPatterns(Arrays.asList(
+                "https://clinova.clinicalhouse.co",
+                "http://clinova.clinicalhouse.co",
+                "https://apiclinovavps.clinicalhouse.co",
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "*"
+            ));
         }
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
