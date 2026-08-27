@@ -514,45 +514,50 @@ public class DocumentoController {
                 return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento no tiene archivo físico registrado en el servidor", null));
             }
 
-            if (file != null && Files.exists(file) && Files.isReadable(file)) {
-                Resource resource = new UrlResource(file.toUri());
-                String contentType = "application/octet-stream";
-                String filename = file.getFileName().toString().toLowerCase();
+            Resource resource = new UrlResource(file.toUri());
+            String contentType = "application/octet-stream";
+            String filename = file.getFileName().toString().toLowerCase();
 
-                if (filename.endsWith(".pdf")) contentType = MediaType.APPLICATION_PDF_VALUE;
-                else if (filename.endsWith(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                else if (filename.endsWith(".xlsx")) contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            if (filename.endsWith(".pdf")) contentType = MediaType.APPLICATION_PDF_VALUE;
+            else if (filename.endsWith(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            else if (filename.endsWith(".xlsx")) contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-                try {
-                    historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
-                } catch (Exception ignored) {}
+            try {
+                historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
+            } catch (Exception ignored) {}
 
-                String ext = "";
-                String diskName = file.getFileName().toString();
-                int lastDot = diskName.lastIndexOf('.');
-                if (lastDot > 0) {
-                    ext = diskName.substring(lastDot);
-                }
-
-                String codigoPrefix = (doc.getCodigo() != null && !doc.getCodigo().isBlank() && !"--".equals(doc.getCodigo().trim())) 
-                        ? doc.getCodigo().trim() + " - " : "";
-                String docNombre = doc.getNombre() != null && !doc.getNombre().isBlank() ? doc.getNombre().trim() : "documento";
-                String displayFilename = codigoPrefix + docNombre + ext;
-                String safeFilename = displayFilename.replaceAll("[\\\\/:*?\"<>|]", "_");
-                String encodedFilename = java.net.URLEncoder.encode(safeFilename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-
-                String disposition = ("pdf".equalsIgnoreCase(tipo) || filename.endsWith(".pdf")) ? "inline" : "attachment";
-
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"" + safeFilename + "\"; filename*=UTF-8''" + encodedFilename)
-                        .header(HttpHeaders.CONTENT_TYPE, contentType)
-                        .body(resource);
-            } else {
-                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El archivo físico '" + archivoReal + "' no se encuentra en el servidor", null));
+            String ext = "";
+            String diskName = file.getFileName().toString();
+            int lastDot = diskName.lastIndexOf('.');
+            if (lastDot > 0) {
+                ext = diskName.substring(lastDot);
             }
+
+            String codigoPrefix = (doc.getCodigo() != null && !doc.getCodigo().isBlank() && !"--".equals(doc.getCodigo().trim())) 
+                    ? doc.getCodigo().trim() + " - " : "";
+            String docNombre = doc.getNombre() != null && !doc.getNombre().isBlank() ? doc.getNombre().trim() : "documento";
+            String displayFilename = codigoPrefix + docNombre + ext;
+            String safeFilename = displayFilename.replaceAll("[\\\\/:*?\"<>|]", "_");
+            
+            // Generate clean ASCII filename for RFC header compatibility with Tomcat
+            String asciiFilename = java.text.Normalizer.normalize(safeFilename, java.text.Normalizer.Form.NFD)
+                    .replaceAll("[^\\p{ASCII}]", "")
+                    .replaceAll("[^a-zA-Z0-9._ -]", "_")
+                    .replaceAll("\\s+", " ")
+                    .trim();
+            if (asciiFilename.isBlank()) asciiFilename = "documento" + ext;
+
+            String encodedFilename = java.net.URLEncoder.encode(safeFilename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+
+            String disposition = ("pdf".equalsIgnoreCase(tipo) || filename.endsWith(".pdf")) ? "inline" : "attachment";
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"" + asciiFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_TYPE, contentType)
+                    .body(resource);
         } catch (Exception e) {
             log.error("Error al descargar documento id {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(500).body(new StructureResponses<>("ERROR", e.getMessage(), null));
+            return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "No se pudo acceder al archivo físico del documento: " + e.getMessage(), null));
         }
     }
 
