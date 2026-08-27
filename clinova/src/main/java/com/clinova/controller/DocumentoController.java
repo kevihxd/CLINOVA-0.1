@@ -91,7 +91,12 @@ public class DocumentoController {
 
     @GetMapping("/{id}/historial")
     public ResponseEntity<List<DocumentoHistorialDTO>> obtenerHistorial(@PathVariable Long id) {
-        return ResponseEntity.ok(historialService.obtenerHistorialPorDocumento(id));
+        try {
+            return ResponseEntity.ok(historialService.obtenerHistorialPorDocumento(id));
+        } catch (Exception e) {
+            log.error("Error al obtener historial para id {}: {}", id, e.getMessage());
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 
     @PostMapping
