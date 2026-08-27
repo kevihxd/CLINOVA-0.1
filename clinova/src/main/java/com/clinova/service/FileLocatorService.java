@@ -51,6 +51,16 @@ public class FileLocatorService {
                                     Path relativeToUploads = root.relativize(file);
                                     String relativePath = relativeToUploads.toString().replace("\\", "/").toLowerCase();
                                     fileIndex.putIfAbsent(relativePath, file);
+
+                                    if (relativePath.startsWith("data/")) {
+                                        fileIndex.putIfAbsent(relativePath.substring(5), file);
+                                    }
+                                    if (relativePath.startsWith("uploads/")) {
+                                        fileIndex.putIfAbsent(relativePath.substring(8), file);
+                                    }
+                                    if (relativePath.startsWith("uploads/data/")) {
+                                        fileIndex.putIfAbsent(relativePath.substring(13), file);
+                                    }
                                 } catch (Exception ignored) {}
                             }
                             return FileVisitResult.CONTINUE;
@@ -77,10 +87,18 @@ public class FileLocatorService {
         if (nombreUbicacion == null || nombreUbicacion.isBlank()) return null;
 
         String key = nombreUbicacion.toLowerCase().replace("\\", "/").trim();
+        if (key.startsWith("/")) key = key.substring(1);
+        String strippedKey = key.startsWith("data/") ? key.substring(5) : key;
 
         // 1. Búsqueda exacta (nombre o ruta relativa)
         if (fileIndex.containsKey(key)) {
             return fileIndex.get(key);
+        }
+        if (fileIndex.containsKey(strippedKey)) {
+            return fileIndex.get(strippedKey);
+        }
+        if (fileIndex.containsKey("data/" + strippedKey)) {
+            return fileIndex.get("data/" + strippedKey);
         }
 
         // 2. Extraer sólo el nombre del archivo

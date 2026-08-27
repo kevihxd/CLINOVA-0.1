@@ -590,25 +590,38 @@ public class DocumentoController {
         if (nombreArchivo == null || nombreArchivo.trim().isEmpty() || "SIN_ARCHIVO".equalsIgnoreCase(nombreArchivo.trim())) return null;
 
         String cleanedName = nombreArchivo.trim().replace("\\", "/");
+        if (cleanedName.startsWith("/")) cleanedName = cleanedName.substring(1);
+        String strippedName = cleanedName.startsWith("data/") ? cleanedName.substring(5) : cleanedName;
 
         try {
             // 1. Probar la ruta directa unida a rootUploads
             Path directPath = root.resolve(cleanedName).normalize();
-            if (Files.exists(directPath) && Files.isRegularFile(directPath)) {
-                return directPath;
-            }
+            if (Files.exists(directPath) && Files.isRegularFile(directPath)) return directPath;
+
+            Path dataPath = root.resolve("data/" + strippedName).normalize();
+            if (Files.exists(dataPath) && Files.isRegularFile(dataPath)) return dataPath;
+
+            Path plainPath = root.resolve(strippedName).normalize();
+            if (Files.exists(plainPath) && Files.isRegularFile(plainPath)) return plainPath;
         } catch (Exception ignored) {}
 
         try {
             // 2. Probar como ruta absoluta
             Path absPath = Paths.get(cleanedName);
-            if (Files.exists(absPath) && Files.isRegularFile(absPath)) {
-                return absPath;
-            }
+            if (Files.exists(absPath) && Files.isRegularFile(absPath)) return absPath;
+
+            Path absDataPath = Paths.get("/app/uploads/data/" + strippedName);
+            if (Files.exists(absDataPath) && Files.isRegularFile(absDataPath)) return absDataPath;
+
+            Path absPlainPath = Paths.get("/app/uploads/" + strippedName);
+            if (Files.exists(absPlainPath) && Files.isRegularFile(absPlainPath)) return absPlainPath;
         } catch (Exception ignored) {}
 
         // 3. Probar via FileLocatorService (búsqueda en todo el índice en memoria)
         Path fromService = fileLocator.buscarArchivo(cleanedName);
+        if (fromService != null && Files.exists(fromService)) return fromService;
+
+        fromService = fileLocator.buscarArchivo(strippedName);
         if (fromService != null && Files.exists(fromService)) return fromService;
 
         // Extraer nombre de archivo simple para fallback
