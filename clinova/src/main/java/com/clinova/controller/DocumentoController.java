@@ -157,19 +157,29 @@ public class DocumentoController {
             @AuthenticationPrincipal Usuario usuario) {
         try {
             if (archivo != null && !archivo.isEmpty()) {
-                String nombreArchivo = UUID.randomUUID() + "_" + archivo.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-                Files.copy(archivo.getInputStream(), this.root.resolve("documentos").resolve(nombreArchivo));
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
+                String origName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "archivo";
+                String nombreArchivo = UUID.randomUUID() + "_" + origName.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
+                Path targetPath = folder.resolve(nombreArchivo);
+                Files.copy(archivo.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPath);
                 documento.setUbicacion(nombreArchivo);
-                if (documento.getRutaArchivoLocal() == null || documento.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(documento.getRutaArchivoLocal())) {
-                    documento.setRutaArchivoLocal(nombreArchivo);
+                documento.setRutaArchivoLocal(nombreArchivo);
+                if (origName.toLowerCase().endsWith(".pdf")) {
+                    documento.setUbicacionPdf(nombreArchivo);
                 }
             } else if (documento.getUbicacion() == null || documento.getUbicacion().isEmpty()) {
                 documento.setUbicacion("SIN_ARCHIVO");
             }
 
             if (archivoPdf != null && !archivoPdf.isEmpty()) {
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
                 String nombrePdf = UUID.randomUUID() + "_" + archivoPdf.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-                Files.copy(archivoPdf.getInputStream(), this.root.resolve("documentos").resolve(nombrePdf));
+                Path targetPdfPath = folder.resolve(nombrePdf);
+                Files.copy(archivoPdf.getInputStream(), targetPdfPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPdfPath);
                 documento.setUbicacionPdf(nombrePdf);
                 if (documento.getRutaArchivoLocal() == null || documento.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(documento.getRutaArchivoLocal())) {
                     documento.setRutaArchivoLocal(nombrePdf);
@@ -205,7 +215,7 @@ public class DocumentoController {
             String histDesc = (documento.getControlCambios() != null && !documento.getControlCambios().isBlank()) 
                     ? documento.getControlCambios() 
                     : "Documento creado y enviado a revisión";
-            historialService.registrarHistorial(guardado.getId(), "CREACION", histDesc, usuario);
+            historialService.registrarHistorial(guardado.getId(), "CREACION", histDesc, usuario, guardado.getVersion());
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento enviado a revisión", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
@@ -321,7 +331,9 @@ public class DocumentoController {
                         : ("Nueva versión " + cambios.getVersion() + " creada e implementada");
                 historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", versionComment, usuario, cambios.getVersion());
             } else {
-                historialService.registrarHistorial(guardado.getId(), "MODIFICACION", "Documento modificado", usuario);
+                String modDesc = (guardado.getControlCambios() != null && !guardado.getControlCambios().isBlank()) 
+                        ? guardado.getControlCambios() : "Documento modificado";
+                historialService.registrarHistorial(guardado.getId(), "MODIFICACION", modDesc, usuario, guardado.getVersion());
             }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento actualizado", guardado));
         } catch (Exception e) {
@@ -406,7 +418,9 @@ public class DocumentoController {
                 Files.createDirectories(folder);
                 String origName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "archivo";
                 String nombreArchivo = UUID.randomUUID() + "_" + origName.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-                Files.copy(archivo.getInputStream(), folder.resolve(nombreArchivo), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                Path targetPath = folder.resolve(nombreArchivo);
+                Files.copy(archivo.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPath);
                 doc.setUbicacion(nombreArchivo);
                 doc.setRutaArchivoLocal(nombreArchivo);
                 if (origName.toLowerCase().endsWith(".pdf")) {
@@ -418,7 +432,9 @@ public class DocumentoController {
                 Path folder = this.root.resolve("documentos");
                 Files.createDirectories(folder);
                 String nombrePdf = UUID.randomUUID() + "_" + archivoPdf.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-                Files.copy(archivoPdf.getInputStream(), folder.resolve(nombrePdf), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                Path targetPdfPath = folder.resolve(nombrePdf);
+                Files.copy(archivoPdf.getInputStream(), targetPdfPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPdfPath);
                 doc.setUbicacionPdf(nombrePdf);
                 if (doc.getRutaArchivoLocal() == null || doc.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(doc.getRutaArchivoLocal())) {
                     doc.setRutaArchivoLocal(nombrePdf);
@@ -670,9 +686,12 @@ public class DocumentoController {
         if (fromService != null && Files.exists(fromService) && Files.isReadable(fromService)) return fromService;
 
         try {
-            // 2. Probar rutas directas
+            // 2. Probar rutas directas (incluyendo subcarpeta /documentos/)
             Path directPath = root.resolve(cleanedName).normalize();
             if (Files.exists(directPath) && Files.isRegularFile(directPath)) return directPath;
+
+            Path docSubfolderPath = root.resolve("documentos").resolve(baseName).normalize();
+            if (Files.exists(docSubfolderPath) && Files.isRegularFile(docSubfolderPath)) return docSubfolderPath;
 
             Path dataPath = root.resolve("data/" + strippedName).normalize();
             if (Files.exists(dataPath) && Files.isRegularFile(dataPath)) return dataPath;
@@ -682,9 +701,12 @@ public class DocumentoController {
         } catch (Exception ignored) {}
 
         try {
-            // 3. Probar como rutas absolutas
+            // 3. Probar como rutas absolutas (incluyendo /app/uploads/documentos/)
             Path absPath = Paths.get(cleanedName);
             if (Files.exists(absPath) && Files.isRegularFile(absPath)) return absPath;
+
+            Path absDocPath = Paths.get("/app/uploads/documentos/" + baseName);
+            if (Files.exists(absDocPath) && Files.isRegularFile(absDocPath)) return absDocPath;
 
             Path absDataPath = Paths.get("/app/uploads/data/" + strippedName);
             if (Files.exists(absDataPath) && Files.isRegularFile(absDataPath)) return absDataPath;

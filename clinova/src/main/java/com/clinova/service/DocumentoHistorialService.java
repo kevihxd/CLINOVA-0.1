@@ -88,10 +88,20 @@ public class DocumentoHistorialService {
 
             for (DocumentoHistorial logEntry : existingLogs) {
                 String user = (logEntry.getUsuario() != null && !logEntry.getUsuario().isBlank()) ? logEntry.getUsuario() : "Usuario del Sistema";
+                String ver = logEntry.getVersion();
+                if (ver == null || ver.isBlank() || ver.equals("0")) {
+                    for (Documento d : relacionados) {
+                        if (d.getId().equals(logEntry.getDocumentoId()) && d.getVersion() != null) {
+                            ver = d.getVersion();
+                            break;
+                        }
+                    }
+                }
+                if (ver == null || ver.isBlank()) ver = doc != null && doc.getVersion() != null ? doc.getVersion() : "1";
                 dtos.add(new DocumentoHistorialDTO(
                         logEntry.getId(),
                         logEntry.getDocumentoId(),
-                        logEntry.getVersion() != null ? logEntry.getVersion() : "1",
+                        ver,
                         logEntry.getAccion(),
                         logEntry.getDescripcion(),
                         user,
