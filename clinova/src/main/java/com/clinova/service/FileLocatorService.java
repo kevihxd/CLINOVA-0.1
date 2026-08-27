@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,66 +24,48 @@ public class FileLocatorService {
 
     @PostConstruct
     public void initIndex() {
-        Path candidate = Paths.get(uploadsRootPath).toAbsolutePath().normalize();
-        if (!Files.exists(candidate)) {
-            log.info("La ruta configurada '{}' no existe. Buscando ubicaciones alternativas de uploads...", candidate);
-            
-            // Fallback 1: Desktop/Clinova/uploads en la carpeta del usuario actual
-            Path userHomeDesktop = Paths.get(System.getProperty("user.home"), "Desktop", "Clinova", "uploads");
-            if (Files.exists(userHomeDesktop)) {
-                candidate = userHomeDesktop;
-            } else {
-                // Fallback 2: ./uploads en el directorio del proyecto
-                Path localUploads = Paths.get("uploads").toAbsolutePath().normalize();
-                if (Files.exists(localUploads)) {
-                    candidate = localUploads;
-                } else {
-                    // Fallback 3: ../uploads
-                    Path parentUploads = Paths.get("..", "uploads").toAbsolutePath().normalize();
-                    if (Files.exists(parentUploads)) {
-                        candidate = parentUploads;
-                    }
+        List<Path> candidateRoots = List.of(
+            Paths.get(uploadsRootPath).toAbsolutePath().normalize(),
+            Paths.get("/app/uploads").toAbsolutePath().normalize(),
+            Paths.get("/opt/clinova/uploads").toAbsolutePath().normalize(),
+            Paths.get("/opt/clinova").toAbsolutePath().normalize(),
+            Paths.get("uploads").toAbsolutePath().normalize(),
+            Paths.get("..", "uploads").toAbsolutePath().normalize(),
+            Paths.get(System.getProperty("user.home"), "Desktop", "Clinova", "uploads")
+        );
+
+        for (Path root : candidateRoots) {
+            if (Files.exists(root) && Files.isDirectory(root)) {
+                log.info("Indexando archivos desde directorio raíz: {}", root);
+                if (rootUploads == null) rootUploads = root;
+                try {
+                    Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                            if (!Files.isDirectory(file)) {
+                                String fileName = file.getFileName().toString().toLowerCase();
+                                fileIndex.putIfAbsent(fileName, file);
+
+                                try {
+                                    Path relativeToUploads = root.relativize(file);
+                                    String relativePath = relativeToUploads.toString().replace("\\", "/").toLowerCase();
+                                    fileIndex.putIfAbsent(relativePath, file);
+                                } catch (Exception ignored) {}
+                            }
+                            return FileVisitResult.CONTINUE;
+                        }
+
+                        @Override
+                        public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
+                } catch (IOException e) {
+                    log.error("Error indexando directorio {}: {}", root, e.getMessage());
                 }
             }
         }
-        
-        rootUploads = candidate;
-        log.info("Iniciando escaneo rápido de archivos en: {}", rootUploads);
-
-        if (!Files.exists(rootUploads)) {
-            log.warn("El directorio base de uploads no fue encontrado en ninguna ubicación: {}", rootUploads);
-            return;
-        }
-
-        try {
-            Files.walkFileTree(rootUploads, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (!Files.isDirectory(file)) {
-                        String fileName = file.getFileName().toString().toLowerCase();
-                        fileIndex.putIfAbsent(fileName, file);
-
-                        Path relativeToUploads = rootUploads.relativize(file);
-                        String relativePath = relativeToUploads.toString().replace("\\", "/").toLowerCase();
-                        fileIndex.putIfAbsent(relativePath, file);
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-            log.info("Escaneo completado. Archivos de documentos indexados en memoria: {}", fileIndex.size());
-        } catch (IOException e) {
-            log.error("Error al indexar archivos físicos: {}", e.getMessage(), e);
-        }
+        log.info("Escaneo masivo de documentos completado. Total archivos indexados en memoria: {}", fileIndex.size());
     }
 
     /**
@@ -99,18 +82,27 @@ public class FileLocatorService {
             return fileIndex.get(key);
         }
 
-        // 2. Si viene con ruta parcial (ej: "Documentos/15/archivo.pdf"), extraer solo el nombre
+        // 2. Extraer sólo el nombre del archivo
         int lastSlash = key.lastIndexOf("/");
-        if (lastSlash >= 0) {
-            String justName = key.substring(lastSlash + 1);
-            if (fileIndex.containsKey(justName)) {
-                return fileIndex.get(justName);
+        String justName = (lastSlash >= 0) ? key.substring(lastSlash + 1) : key;
+        if (fileIndex.containsKey(justName)) {
+            return fileIndex.get(justName);
+        }
+
+        // 3. Probar variaciones de extensiones (.pdf <-> .docx <-> .xlsx)
+        int dot = justName.lastIndexOf('.');
+        String nameWithoutExt = (dot > 0) ? justName.substring(0, dot) : justName;
+        for (String ext : List.of(".pdf", ".docx", ".xlsx", ".xls", ".doc")) {
+            String candName = (nameWithoutExt + ext).toLowerCase();
+            if (fileIndex.containsKey(candName)) {
+                return fileIndex.get(candName);
             }
         }
 
-        // 3. Búsqueda parcial: recorrer índice buscando cualquier entrada que TERMINE con la clave
+        // 4. Búsqueda por sufijo
         for (Map.Entry<String, Path> entry : fileIndex.entrySet()) {
-            if (entry.getKey().endsWith(key) || entry.getKey().endsWith("/" + key)) {
+            String entryKey = entry.getKey();
+            if (entryKey.endsWith(key) || entryKey.endsWith("/" + key) || entryKey.endsWith("/" + justName)) {
                 return entry.getValue();
             }
         }
