@@ -685,6 +685,34 @@ public class DocumentoController {
             if (Files.exists(absPlainPath) && Files.isRegularFile(absPlainPath)) return absPlainPath;
         } catch (Exception ignored) {}
 
+        // 4. Probar subcarpetas conocidas (Restaurado para resolver 100% de archivos Kawak)
+        String[] carpetasExtendidas = {
+            "files/Formatos/1", 
+            "files/Documentos/1", 
+            "files/Externos/1", 
+            "documentos/1",
+            "documentos", 
+            "files/Formatos", 
+            "files/Documentos", 
+            "files/Externos", 
+            "files/Internos", 
+            "soportes/otros_soportes", 
+            "soportes/sin_clasificar", 
+            "certificados", 
+            "fotos", 
+            "soportes"
+        };
+        for (String dir : carpetasExtendidas) {
+            Path path = root.resolve(dir).resolve(baseName).normalize();
+            if (Files.exists(path) && Files.isRegularFile(path)) return path;
+
+            Path dockerPath = Paths.get("/app/uploads").resolve(dir).resolve(baseName).normalize();
+            if (Files.exists(dockerPath) && Files.isRegularFile(dockerPath)) return dockerPath;
+
+            Path dockerDataPath = Paths.get("/app/uploads/data").resolve(dir).resolve(baseName).normalize();
+            if (Files.exists(dockerDataPath) && Files.isRegularFile(dockerDataPath)) return dockerDataPath;
+        }
+
         return null;
     }
 
