@@ -150,35 +150,52 @@ public class CargoController {
             if (cargo == null) return ResponseEntity.notFound().build();
 
             // 1. Desvincular usuarios asociados a este cargo
-            entityManager.createNativeQuery("UPDATE usuarios SET cargo_id = NULL WHERE cargo_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
+            try {
+                entityManager.createNativeQuery("UPDATE usuarios SET cargo_id = NULL WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
 
             // 2. Desvincular cargos subordinados que reportaban a este cargo
-            entityManager.createNativeQuery("UPDATE cargos SET reporta_a_id = NULL WHERE reporta_a_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
+            try {
+                entityManager.createNativeQuery("UPDATE cargos SET reporta_a_id = NULL WHERE reporta_a_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
 
             // 3. Eliminar perfil de cargo si existe
-            entityManager.createNativeQuery("DELETE FROM perfiles_cargo WHERE cargo_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
+            try {
+                entityManager.createNativeQuery("DELETE FROM perfiles_cargo WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
 
             // 4. Eliminar permisos asociados en tabla intermedia
-            entityManager.createNativeQuery("DELETE FROM cargo_permiso WHERE cargo_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
+            try {
+                entityManager.createNativeQuery("DELETE FROM cargo_permiso WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
 
-            // 5. Eliminar asociaciones en grupos de distribución y hojas de vida si existen
+            // 5. Eliminar asociaciones en grupos de distribución
             try {
                 entityManager.createNativeQuery("DELETE FROM grupo_distribucion_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
+
+            // 6. Eliminar asociaciones en hojas de vida (ambas variantes de tabla)
+            try {
+                entityManager.createNativeQuery("DELETE FROM hojas_vida_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
             } catch (Exception ignored) {}
             try {
                 entityManager.createNativeQuery("DELETE FROM hoja_vida_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
             } catch (Exception ignored) {}
 
-            // 6. Eliminar el registro del cargo
-            cargoRepository.delete(cargo);
+            // 7. Eliminar cualquier otra tabla intermedia de usuarios_cargos
+            try {
+                entityManager.createNativeQuery("DELETE FROM usuario_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
+            try {
+                entityManager.createNativeQuery("DELETE FROM usuarios_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception ignored) {}
+
+            // 8. Eliminar el registro del cargo
+            try {
+                entityManager.createNativeQuery("DELETE FROM cargos WHERE id = :id").setParameter("id", id).executeUpdate();
+            } catch (Exception e) {
+                cargoRepository.delete(cargo);
+            }
 
             return ResponseEntity.ok().build();
         } catch (Exception e) {
