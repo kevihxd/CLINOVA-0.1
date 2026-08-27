@@ -104,6 +104,7 @@ public class DocumentoController {
     @GetMapping("/debug-files")
     public ResponseEntity<?> debugFiles(@RequestParam(value = "q", required = false) String query) {
         Map<String, Object> debugInfo = new LinkedHashMap<>();
+        debugInfo.put("jarVersion", "v9-eb82554-FileLocatorPriority");
         debugInfo.put("fileIndexSize", fileLocator.getIndexSize());
         debugInfo.put("rootUploads", fileLocator.getRootUploads());
         if (query != null && !query.isBlank()) {
@@ -111,6 +112,41 @@ public class DocumentoController {
             debugInfo.put("matchingKeys", fileLocator.findMatchingKeys(query));
         }
         return ResponseEntity.ok(debugInfo);
+    }
+
+    @GetMapping("/debug-doc/{id}")
+    public ResponseEntity<?> debugDoc(@PathVariable Long id) {
+        try {
+            Documento doc = repository.findById(id).orElse(null);
+            if (doc == null) return ResponseEntity.status(404).body("Documento no encontrado");
+            Map<String, Object> info = new LinkedHashMap<>();
+            info.put("id", doc.getId());
+            info.put("kawakId", doc.getKawakId());
+            info.put("nombre", doc.getNombre());
+            info.put("ubicacion", doc.getUbicacion());
+            info.put("ubicacionPdf", doc.getUbicacionPdf());
+            info.put("rutaArchivoLocal", doc.getRutaArchivoLocal());
+            Long kId = doc.getKawakId() != null ? doc.getKawakId() : doc.getId();
+            Long docId = doc.getId();
+            // Probar los candidatos clave
+            List<String> testCandidatos = List.of(
+                "files/Formatos/1/" + kId + ".pdf",
+                "files/Formatos/1/" + docId + ".pdf",
+                "files/formatos/1/" + kId + ".pdf",
+                "files/formatos/1/" + docId + ".pdf",
+                kId + ".pdf",
+                docId + ".pdf"
+            );
+            Map<String, Object> resoluciones = new LinkedHashMap<>();
+            for (String cand : testCandidatos) {
+                Path p = fileLocator.buscarArchivo(cand);
+                resoluciones.put(cand, p != null ? p.toString() + " [exists=" + Files.exists(p) + "]" : "null");
+            }
+            info.put("resoluciones", resoluciones);
+            return ResponseEntity.ok(info);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+        }
     }
 
     @PostMapping
