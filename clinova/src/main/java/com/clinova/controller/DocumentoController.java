@@ -525,7 +525,15 @@ public class DocumentoController {
             List<String> prefixes = List.of("", "LMD", "LMR", "LMC", "LMP");
             List<String> subdirs = List.of("files/Formatos/1", "files/Documentos/1", "files/Externos/1", "files/Formatos/" + kId, "files/Documentos/" + kId, "files/Externos/" + kId, "files/Formatos", "files/Documentos", "files/Externos");
 
-            if ("pdf".equalsIgnoreCase(tipo)) {
+            if ("original".equalsIgnoreCase(tipo) || tipo == null || tipo.isBlank()) {
+                // Para descarga de archivo original: Probar primero las rutas exactas registradas en BD
+                if (!isInvalidPath(doc.getRutaArchivoLocal())) candidatos.add(doc.getRutaArchivoLocal());
+                if (!isInvalidPath(doc.getUbicacion())) candidatos.add(doc.getUbicacion());
+                if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
+                    candidatos.add(doc.getUbicacionPdf());
+                }
+            } else if ("pdf".equalsIgnoreCase(tipo)) {
+                // Para PDF: probar primero candidatos con extensión .pdf
                 for (String dir : subdirs) {
                     for (String pfx : prefixes) {
                         candidatos.add(dir + "/" + pfx + kId + ".pdf");
@@ -543,17 +551,17 @@ public class DocumentoController {
                 }
             }
 
-            // Candidatos para archivos Office (xlsx, docx, xls, doc)
+            // Candidatos para archivos Office y otros formatos originales (xlsx, docx, xls, doc, pub, zip)
             for (String dir : subdirs) {
                 for (String pfx : prefixes) {
-                    for (String ext : List.of(".xlsx", ".docx", ".xls", ".doc")) {
+                    for (String ext : List.of(".xlsx", ".docx", ".xls", ".doc", ".pdf", ".pub", ".zip")) {
                         candidatos.add(dir + "/" + pfx + kId + ext);
                         candidatos.add(dir + "/" + pfx + docId + ext);
                     }
                 }
             }
 
-            // Agregar ubicaciones generales registradas en BD como fallback
+            // Agregar ubicaciones generales registradas en BD como fallback final
             if (!isInvalidPath(doc.getRutaArchivoLocal())) candidatos.add(doc.getRutaArchivoLocal());
             if (!isInvalidPath(doc.getUbicacion())) candidatos.add(doc.getUbicacion());
             if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) candidatos.add(doc.getUbicacionPdf());
