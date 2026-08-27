@@ -483,6 +483,16 @@ public class DocumentoController {
             
             // Probar candidatos de archivo en orden de prioridad
             List<String> candidatos = new ArrayList<>();
+            Long kId = doc.getKawakId() != null ? doc.getKawakId() : doc.getId();
+
+            // 1. Probar rutas directas de Kawak usando kawak_id
+            candidatos.add("files/Formatos/" + kId + "/" + kId + ".pdf");
+            candidatos.add("files/Formatos/" + kId + "/LMD" + kId + ".pdf");
+            candidatos.add("files/Formatos/" + kId + "/LMR" + kId + ".pdf");
+            candidatos.add("files/Documentos/" + kId + "/" + kId + ".pdf");
+            candidatos.add("files/Documentos/" + kId + "/LMD" + kId + ".pdf");
+            candidatos.add("files/Documentos/" + kId + "/LMR" + kId + ".pdf");
+            candidatos.add("files/Externos/" + kId + "/" + kId + ".pdf");
 
             if ("pdf".equalsIgnoreCase(tipo)) {
                 if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
@@ -495,6 +505,14 @@ public class DocumentoController {
                     candidatos.add(doc.getRutaArchivoLocal());
                 }
             }
+
+            // Candidatos con kawakId para archivos Office original
+            candidatos.add("files/Formatos/" + kId + "/" + kId + ".docx");
+            candidatos.add("files/Formatos/" + kId + "/" + kId + ".xlsx");
+            candidatos.add("files/Formatos/" + kId + "/" + kId + ".xls");
+            candidatos.add("files/Documentos/" + kId + "/" + kId + ".docx");
+            candidatos.add("files/Documentos/" + kId + "/" + kId + ".xlsx");
+            candidatos.add("files/Externos/" + kId + "/" + kId + ".docx");
 
             // Agregar ubicaciones generales como fallback
             if (!isInvalidPath(doc.getRutaArchivoLocal())) candidatos.add(doc.getRutaArchivoLocal());
