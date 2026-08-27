@@ -28,10 +28,27 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
             d.fechaElaboracion, d.fechaRevision, d.elabora, d.revisa, d.aprueba,
             d.controlCambios, d.descripcion
         ) FROM Documento d
-        WHERE (d.codigo IS NULL OR d.codigo NOT LIKE 'EXT-%')
+        WHERE (d.estado IS NULL OR UPPER(d.estado) <> 'OBSOLETO')
+          AND (d.codigo IS NULL OR d.codigo NOT LIKE 'EXT-%')
           AND (d.proceso IS NULL OR d.proceso NOT LIKE '%EXTERNA Y REQUISITOS%')
           AND (d.tipo IS NULL OR d.tipo NOT LIKE '%EXTERNO%')
         ORDER BY d.kawakId DESC, d.id DESC
     """)
     List<com.clinova.dto.DocumentoListDTO> findAllLightweight();
+
+    @Query("""
+        SELECT new com.clinova.dto.DocumentoListDTO(
+            d.id, d.kawakId, d.codigo, d.nombre, d.tipo, d.proceso, d.sede,
+            d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas,
+            d.rutaArchivoLocal, d.ubicacion, d.ubicacionPdf, d.fechaAprobacion,
+            d.fechaElaboracion, d.fechaRevision, d.elabora, d.revisa, d.aprueba,
+            d.controlCambios, d.descripcion
+        ) FROM Documento d
+        WHERE UPPER(d.estado) = 'OBSOLETO'
+          AND (d.codigo IS NULL OR d.codigo NOT LIKE 'EXT-%')
+          AND (d.proceso IS NULL OR d.proceso NOT LIKE '%EXTERNA Y REQUISITOS%')
+          AND (d.tipo IS NULL OR d.tipo NOT LIKE '%EXTERNO%')
+        ORDER BY d.kawakId DESC, d.id DESC
+    """)
+    List<com.clinova.dto.DocumentoListDTO> findAllObsoletosLightweight();
 }

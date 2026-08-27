@@ -64,6 +64,16 @@ public class DocumentoController {
         }
     }
 
+    @GetMapping("/obsoletos")
+    public ResponseEntity<StructureResponses<List<com.clinova.dto.DocumentoListDTO>>> obtenerObsoletos() {
+        try {
+            List<com.clinova.dto.DocumentoListDTO> lista = repository.findAllObsoletosLightweight();
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Obsoletos obtenidos", lista));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/codigo-preview")
     public ResponseEntity<Map<String, String>> previewCodigo(@RequestParam String proceso, @RequestParam String tipo) {
         return ResponseEntity.ok(Map.of("codigo", generarCodigo(proceso, tipo)));
