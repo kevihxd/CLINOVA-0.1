@@ -75,8 +75,7 @@ public class DocumentoHistorialService {
         List<DocumentoHistorialDTO> dtos = new ArrayList<>();
 
         for (DocumentoHistorial log : existingLogs) {
-            String user = (log.getUsuario() == null || log.getUsuario().equalsIgnoreCase("admin") || log.getUsuario().equalsIgnoreCase("Sistema")) 
-                    ? "Carlos Humberto Barrera Rozo" : log.getUsuario();
+            String user = (log.getUsuario() != null && !log.getUsuario().isBlank()) ? log.getUsuario() : "Usuario del Sistema";
             dtos.add(new DocumentoHistorialDTO(
                     log.getId(),
                     log.getDocumentoId(),
@@ -92,10 +91,10 @@ public class DocumentoHistorialService {
             String verStr = d.getVersion() != null ? d.getVersion() : "1";
             boolean hasVer = dtos.stream().anyMatch(dto -> dto.getVersion() != null && verStr.equals(dto.getVersion().trim()));
             if (!hasVer) {
-                String desc = (d.getDescripcion() != null && !d.getDescripcion().isBlank() && !d.getDescripcion().equals("Versión actual del documento")) 
+                String desc = (d.getControlCambios() != null && !d.getControlCambios().isBlank()) ? d.getControlCambios()
+                        : (d.getDescripcion() != null && !d.getDescripcion().isBlank() && !d.getDescripcion().equals("Versión actual del documento")) 
                         ? d.getDescripcion() : ("Actualización del documento, versión " + verStr);
-                String user = (d.getElabora() != null && !d.getElabora().isBlank() && !d.getElabora().equalsIgnoreCase("admin")) 
-                        ? d.getElabora() : "Carlos Humberto Barrera Rozo";
+                String user = (d.getElabora() != null && !d.getElabora().isBlank()) ? d.getElabora() : "Usuario del Sistema";
                 LocalDateTime fecha = LocalDateTime.now();
                 if (d.getFechaAprobacion() != null && !d.getFechaAprobacion().isBlank()) {
                     try {

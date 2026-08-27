@@ -249,6 +249,10 @@ public class DocumentoController {
 
             String oldVersion = doc.getVersion();
 
+            String prevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank()) 
+                    ? doc.getControlCambios() 
+                    : (doc.getDescripcion() != null && !doc.getDescripcion().isBlank()) ? doc.getDescripcion() : ("Versión " + oldVersion + " del documento");
+
             // 1. Archivar versión previa en OBSOLETOS
             Documento obsoletoDoc = Documento.builder()
                     .codigo(doc.getCodigo())
@@ -277,10 +281,11 @@ public class DocumentoController {
                     .rutaArchivoLocal(doc.getRutaArchivoLocal())
                     .ubicacion(doc.getUbicacion())
                     .ubicacionPdf(doc.getUbicacionPdf())
-                    .descripcion("Versión anterior archivada automáticamente")
+                    .controlCambios(prevDesc)
+                    .descripcion(prevDesc)
                     .build();
             Documento obsoletoGuardado = repository.save(obsoletoDoc);
-            historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", "Versión " + oldVersion + " archivada en OBSOLETOS", usuario, oldVersion);
+            historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", prevDesc, usuario, oldVersion);
 
             // 2. Incrementar número de versión para el nuevo registro vigente
             int vNum = 1;
@@ -296,10 +301,14 @@ public class DocumentoController {
             if (archivo != null && !archivo.isEmpty()) {
                 Path folder = this.root.resolve("documentos");
                 Files.createDirectories(folder);
-                String nombreArchivo = UUID.randomUUID() + "_" + archivo.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
+                String origName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "archivo";
+                String nombreArchivo = UUID.randomUUID() + "_" + origName.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
                 Files.copy(archivo.getInputStream(), folder.resolve(nombreArchivo), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 doc.setUbicacion(nombreArchivo);
                 doc.setRutaArchivoLocal(nombreArchivo);
+                if (origName.toLowerCase().endsWith(".pdf")) {
+                    doc.setUbicacionPdf(nombreArchivo);
+                }
             }
 
             if (archivoPdf != null && !archivoPdf.isEmpty()) {
@@ -320,6 +329,14 @@ public class DocumentoController {
             if (impresion != null) doc.setImpresion(impresion);
             if (descargaOriginal != null) doc.setDescargaOriginal(descargaOriginal);
             if (descargaPdf != null) doc.setDescargaPdf(descargaPdf);
+
+            if (controlCambios != null && !controlCambios.trim().isEmpty()) {
+                doc.setControlCambios(controlCambios.trim());
+                doc.setDescripcion(controlCambios.trim());
+            } else {
+                doc.setControlCambios("Creación e implementación de la versión " + nuevaVerStr);
+                doc.setDescripcion("Creación e implementación de la versión " + nuevaVerStr);
+            }
 
             String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
             doc.setFechaRevision(fechaHoy);
