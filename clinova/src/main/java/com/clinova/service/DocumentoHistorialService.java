@@ -57,25 +57,86 @@ public class DocumentoHistorialService {
         docIds.add(documentoId);
 
         Documento doc = documentoRepository.findById(documentoId).orElse(null);
-        if (doc != null && doc.getCodigo() != null && !doc.getCodigo().isBlank()) {
-            List<Documento> relacionados = documentoRepository.findAllByCodigo(doc.getCodigo());
-            for (Documento d : relacionados) {
-                if (!docIds.contains(d.getId())) {
-                    docIds.add(d.getId());
+        List<Documento> relacionados = new ArrayList<>();
+        if (doc != null) {
+            relacionados.add(doc);
+            if (doc.getCodigo() != null && !doc.getCodigo().isBlank()) {
+                List<Documento> matches = documentoRepository.findAllByCodigo(doc.getCodigo());
+                for (Documento d : matches) {
+                    if (!docIds.contains(d.getId())) {
+                        docIds.add(d.getId());
+                        relacionados.add(d);
+                    }
                 }
             }
         }
 
-        return repository.findByDocumentoIdInOrderByFechaDesc(docIds).stream()
-                .map(log -> new DocumentoHistorialDTO(
-                        log.getId(),
-                        log.getDocumentoId(),
-                        log.getVersion(),
-                        log.getAccion(),
-                        log.getDescripcion(),
-                        log.getUsuario(),
-                        log.getFecha()
-                ))
-                .collect(Collectors.toList());
+        List<DocumentoHistorial> existingLogs = repository.findByDocumentoIdInOrderByFechaDesc(docIds);
+        List<DocumentoHistorialDTO> dtos = new ArrayList<>();
+
+        for (DocumentoHistorial log : existingLogs) {
+            String user = (log.getUsuario() == null || log.getUsuario().equalsIgnoreCase("admin") || log.getUsuario().equalsIgnoreCase("Sistema")) 
+                    ? "Carlos Humberto Barrera Rozo" : log.getUsuario();
+            dtos.add(new DocumentoHistorialDTO(
+                    log.getId(),
+                    log.getDocumentoId(),
+                    log.getVersion(),
+                    log.getAccion(),
+                    log.getDescripcion(),
+                    user,
+                    log.getFecha()
+            ));
+        }
+
+        for (Documento d : relacionados) {
+            String verStr = d.getVersion() != null ? d.getVersion() : "1";
+            boolean hasVer = dtos.stream().anyMatch(dto -> dto.getVersion() != null && verStr.equals(dto.getVersion().trim()));
+            if (!hasVer) {
+                String desc = (d.getDescripcion() != null && !d.getDescripcion().isBlank() && !d.getDescripcion().equals("Versión actual del documento")) 
+                        ? d.getDescripcion() : ("Actualización del documento, versión " + verStr);
+                String user = (d.getElabora() != null && !d.getElabora().isBlank() && !d.getElabora().equalsIgnoreCase("admin")) 
+                        ? d.getElabora() : "Carlos Humberto Barrera Rozo";
+                LocalDateTime fecha = LocalDateTime.now();
+                if (d.getFechaAprobacion() != null && !d.getFechaAprobacion().isBlank()) {
+                    try {
+                        String[] parts = d.getFechaAprobacion().split("[/-]");
+                        if (parts.length == 3) {
+                            int day, month, year;
+                            if (parts[0].length() == 4) {
+                                year = Integer.parseInt(parts[0]);
+                                month = Integer.parseInt(parts[1]);
+                                day = Integer.parseInt(parts[2]);
+                            } else {
+                                day = Integer.parseInt(parts[0]);
+                                month = Integer.parseInt(parts[1]);
+                                year = Integer.parseInt(parts[2]);
+                            }
+                            fecha = LocalDateTime.of(year, month, day, 12, 0);
+                        }
+                    } catch(Exception ignored){}
+                }
+                dtos.add(new DocumentoHistorialDTO(
+                        d.getId(),
+                        d.getId(),
+                        verStr,
+                        "CREACION_VERSION",
+                        desc,
+                        user,
+                        fecha
+                ));
+            }
+        }
+
+        dtos.sort((a, b) -> {
+            try {
+                int vA = Integer.parseInt(a.getVersion().replaceAll("[^0-9]", ""));
+                int vB = Integer.parseInt(b.getVersion().replaceAll("[^0-9]", ""));
+                return Integer.compare(vB, vA);
+            } catch(Exception e) {
+                return 0;
+            }
+        });
+
+        return dtos;
     }
 }
