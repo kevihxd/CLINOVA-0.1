@@ -22,6 +22,8 @@ public class Documento {
     private String alcance;
     private String codigo;
     private String confidencialidad;
+    @Column(name = "control_cambios", columnDefinition = "LONGTEXT")
+    private String controlCambios;
     @Column(columnDefinition = "LONGTEXT")
     private String descripcion;
     private String estado;

@@ -2,6 +2,8 @@ package com.clinova.service;
 
 import com.clinova.dto.DocumentoHistorialDTO;
 import com.clinova.entity.Documento;
+import com.clinova.entity.DocumentoHistorial;
+import com.clinova.entity.Usuario;
 import com.clinova.repository.DocumentoHistorialRepository;
 import com.clinova.repository.DocumentoRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -89,7 +90,7 @@ public class DocumentoHistorialService {
 
         for (Documento d : relacionados) {
             String verStr = d.getVersion() != null ? d.getVersion() : "1";
-            boolean hasVer = dtos.stream().anyMatch(dto -> dto.getVersion() != null && verStr.equals(dto.getVersion().trim()));
+            boolean hasVer = dtos.stream().anyMatch(dto -> dto.version() != null && verStr.equals(dto.version().trim()));
             if (!hasVer) {
                 String desc = (d.getControlCambios() != null && !d.getControlCambios().isBlank()) ? d.getControlCambios()
                         : (d.getDescripcion() != null && !d.getDescripcion().isBlank() && !d.getDescripcion().equals("Versión actual del documento")) 
@@ -128,8 +129,8 @@ public class DocumentoHistorialService {
 
         dtos.sort((a, b) -> {
             try {
-                int vA = Integer.parseInt(a.getVersion().replaceAll("[^0-9]", ""));
-                int vB = Integer.parseInt(b.getVersion().replaceAll("[^0-9]", ""));
+                int vA = Integer.parseInt(a.version().replaceAll("[^0-9]", ""));
+                int vB = Integer.parseInt(b.version().replaceAll("[^0-9]", ""));
                 return Integer.compare(vB, vA);
             } catch(Exception e) {
                 return 0;
