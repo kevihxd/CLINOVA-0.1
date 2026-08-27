@@ -25,7 +25,8 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
             d.id, d.kawakId, d.codigo, d.nombre, d.tipo, d.proceso, d.sede,
             d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas,
             d.rutaArchivoLocal, d.ubicacion, d.ubicacionPdf, d.fechaAprobacion,
-            d.fechaElaboracion, d.fechaRevision
+            d.fechaElaboracion, d.fechaRevision, d.elabora, d.revisa, d.aprueba,
+            d.controlCambios, d.descripcion
         ) FROM Documento d
         WHERE (d.codigo IS NULL OR d.codigo NOT LIKE 'EXT-%')
           AND (d.proceso IS NULL OR d.proceso NOT LIKE '%EXTERNA Y REQUISITOS%')

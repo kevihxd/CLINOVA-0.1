@@ -127,9 +127,20 @@ public class DocumentoController {
                 documento.setCodigo(generarCodigo(documento.getProceso(), documento.getTipo()));
             }
 
+            if (documento.getControlCambios() != null && !documento.getControlCambios().isBlank()) {
+                if (documento.getDescripcion() == null || documento.getDescripcion().isBlank()) {
+                    documento.setDescripcion(documento.getControlCambios());
+                }
+            } else if (documento.getDescripcion() != null && !documento.getDescripcion().isBlank()) {
+                documento.setControlCambios(documento.getDescripcion());
+            }
+
             documento.setEstado("EN REVISIÓN");
             Documento guardado = repository.save(documento);
-            historialService.registrarHistorial(guardado.getId(), "CREACION", "Documento enviado a revisión", usuario);
+            String histDesc = (documento.getControlCambios() != null && !documento.getControlCambios().isBlank()) 
+                    ? documento.getControlCambios() 
+                    : "Documento creado y enviado a revisión";
+            historialService.registrarHistorial(guardado.getId(), "CREACION", histDesc, usuario);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento enviado a revisión", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));

@@ -22,7 +22,12 @@ public record DocumentoListDTO(
         String ubicacionPdf,
         String fechaAprobacion,
         String fechaElaboracion,
-        String fechaRevision
+        String fechaRevision,
+        String elabora,
+        String revisa,
+        String aprueba,
+        String controlCambios,
+        String descripcion
 ) {
     public static String cleanUtf8(String text) {
         if (text == null) return "";
