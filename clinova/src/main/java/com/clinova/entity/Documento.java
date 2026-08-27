@@ -83,55 +83,56 @@ public class Documento {
     @Column(length = 1000)
     private String visualizacion;
 
-    // --- Campos de Retención Documental (TRD) y Configuración Kawak ---
-    @Column(name = "requiere_aprobacion", length = 10)
+    // --- Campos de Retención Documental (TRD) y Configuración Kawak (Transient para compatibilidad con BD) ---
+    @jakarta.persistence.Transient
     private String requiereAprobacion;
 
-    @Column(name = "permiso_vis_registros", length = 100)
+    @jakarta.persistence.Transient
     private String permisoVisualizacionRegistros;
 
-    @Column(name = "edicion_aprobadores", length = 10)
+    @jakarta.persistence.Transient
     private String edicionAprobadores;
 
-    @Column(name = "edicion_otros", length = 10)
+    @jakarta.persistence.Transient
     private String edicionOtros;
 
-    @Column(name = "edicion_solicitante", length = 10)
+    @jakarta.persistence.Transient
     private String edicionSolicitante;
 
-    @Column(name = "reiniciar_ciclo", length = 10)
+    @jakarta.persistence.Transient
     private String reiniciarCicloAprobacion;
 
-    @Column(name = "requiere_seguimiento", length = 10)
+    @jakarta.persistence.Transient
     private String requiereSeguimiento;
 
-    @Column(name = "evaluar_gestion", length = 10)
+    @jakarta.persistence.Transient
     private String evaluarGestion;
 
-    @Column(name = "retencion_donde", length = 500)
+    @jakarta.persistence.Transient
     private String retencionDonde;
 
-    @Column(name = "retencion_como", length = 500)
+    @jakarta.persistence.Transient
     private String retencionComo;
 
-    @Column(name = "retencion_recuperacion", length = 500)
+    @jakarta.persistence.Transient
     private String retencionRecuperacion;
 
-    @Column(name = "retencion_tiempo", length = 500)
+    @jakarta.persistence.Transient
     private String retencionTiempo;
 
-    @Column(name = "disposicion_final", length = 500)
+    @jakarta.persistence.Transient
     private String disposicionFinal;
 
-    @Column(name = "quien_diligencia", length = 1000)
+    @jakarta.persistence.Transient
     private String quienDiligencia;
 
-    @Column(name = "quien_protege", length = 1000)
+    @jakarta.persistence.Transient
     private String quienProtege;
 
-    @Column(name = "quien_disposicion", length = 1000)
+    @jakarta.persistence.Transient
     private String quienDisposicion;
 
+    @jakarta.persistence.Transient
     private String logo;
 
     // --- Archivo Físico Kawak Backup ---
