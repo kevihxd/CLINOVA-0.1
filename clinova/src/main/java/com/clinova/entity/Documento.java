@@ -83,6 +83,57 @@ public class Documento {
     @Column(length = 1000)
     private String visualizacion;
 
+    // --- Campos de Retención Documental (TRD) y Configuración Kawak ---
+    @Column(name = "requiere_aprobacion", length = 10)
+    private String requiereAprobacion;
+
+    @Column(name = "permiso_vis_registros", length = 100)
+    private String permisoVisualizacionRegistros;
+
+    @Column(name = "edicion_aprobadores", length = 10)
+    private String edicionAprobadores;
+
+    @Column(name = "edicion_otros", length = 10)
+    private String edicionOtros;
+
+    @Column(name = "edicion_solicitante", length = 10)
+    private String edicionSolicitante;
+
+    @Column(name = "reiniciar_ciclo", length = 10)
+    private String reiniciarCicloAprobacion;
+
+    @Column(name = "requiere_seguimiento", length = 10)
+    private String requiereSeguimiento;
+
+    @Column(name = "evaluar_gestion", length = 10)
+    private String evaluarGestion;
+
+    @Column(name = "retencion_donde", length = 500)
+    private String retencionDonde;
+
+    @Column(name = "retencion_como", length = 500)
+    private String retencionComo;
+
+    @Column(name = "retencion_recuperacion", length = 500)
+    private String retencionRecuperacion;
+
+    @Column(name = "retencion_tiempo", length = 500)
+    private String retencionTiempo;
+
+    @Column(name = "disposicion_final", length = 500)
+    private String disposicionFinal;
+
+    @Column(name = "quien_diligencia", length = 1000)
+    private String quienDiligencia;
+
+    @Column(name = "quien_protege", length = 1000)
+    private String quienProtege;
+
+    @Column(name = "quien_disposicion", length = 1000)
+    private String quienDisposicion;
+
+    private String logo;
+
     // --- Archivo Físico Kawak Backup ---
     @Column(name = "ruta_archivo_local", length = 500)
     private String rutaArchivoLocal;

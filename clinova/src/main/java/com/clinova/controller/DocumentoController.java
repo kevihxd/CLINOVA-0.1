@@ -235,6 +235,24 @@ public class DocumentoController {
             if (cambios.getFechaRevision() != null) doc.setFechaRevision(cambios.getFechaRevision());
             if (cambios.getFechaAprobacion() != null) doc.setFechaAprobacion(cambios.getFechaAprobacion());
             if (cambios.getUbicacion() != null) doc.setUbicacion(cambios.getUbicacion());
+            if (cambios.getUbicacionPdf() != null) doc.setUbicacionPdf(cambios.getUbicacionPdf());
+            if (cambios.getRequiereAprobacion() != null) doc.setRequiereAprobacion(cambios.getRequiereAprobacion());
+            if (cambios.getPermisoVisualizacionRegistros() != null) doc.setPermisoVisualizacionRegistros(cambios.getPermisoVisualizacionRegistros());
+            if (cambios.getEdicionAprobadores() != null) doc.setEdicionAprobadores(cambios.getEdicionAprobadores());
+            if (cambios.getEdicionOtros() != null) doc.setEdicionOtros(cambios.getEdicionOtros());
+            if (cambios.getEdicionSolicitante() != null) doc.setEdicionSolicitante(cambios.getEdicionSolicitante());
+            if (cambios.getReiniciarCicloAprobacion() != null) doc.setReiniciarCicloAprobacion(cambios.getReiniciarCicloAprobacion());
+            if (cambios.getRequiereSeguimiento() != null) doc.setRequiereSeguimiento(cambios.getRequiereSeguimiento());
+            if (cambios.getEvaluarGestion() != null) doc.setEvaluarGestion(cambios.getEvaluarGestion());
+            if (cambios.getRetencionDonde() != null) doc.setRetencionDonde(cambios.getRetencionDonde());
+            if (cambios.getRetencionComo() != null) doc.setRetencionComo(cambios.getRetencionComo());
+            if (cambios.getRetencionRecuperacion() != null) doc.setRetencionRecuperacion(cambios.getRetencionRecuperacion());
+            if (cambios.getRetencionTiempo() != null) doc.setRetencionTiempo(cambios.getRetencionTiempo());
+            if (cambios.getDisposicionFinal() != null) doc.setDisposicionFinal(cambios.getDisposicionFinal());
+            if (cambios.getQuienDiligencia() != null) doc.setQuienDiligencia(cambios.getQuienDiligencia());
+            if (cambios.getQuienProtege() != null) doc.setQuienProtege(cambios.getQuienProtege());
+            if (cambios.getQuienDisposicion() != null) doc.setQuienDisposicion(cambios.getQuienDisposicion());
+            if (cambios.getLogo() != null) doc.setLogo(cambios.getLogo());
             if (cambios.getControlCambios() != null && !cambios.getControlCambios().isBlank()) {
                 doc.setControlCambios(cambios.getControlCambios());
                 doc.setDescripcion(cambios.getControlCambios());
