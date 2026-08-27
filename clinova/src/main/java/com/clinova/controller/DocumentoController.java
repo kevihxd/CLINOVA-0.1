@@ -466,13 +466,13 @@ public class DocumentoController {
             List<String> candidatos = new ArrayList<>();
 
             if ("pdf".equalsIgnoreCase(tipo)) {
-                if (!isInvalidPath(doc.getUbicacionPdf()) && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
+                if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
                     candidatos.add(doc.getUbicacionPdf());
                 }
-                if (!isInvalidPath(doc.getUbicacion()) && doc.getUbicacion().toLowerCase().endsWith(".pdf")) {
+                if (!isInvalidPath(doc.getUbicacion()) && doc.getUbicacion() != null && doc.getUbicacion().toLowerCase().endsWith(".pdf")) {
                     candidatos.add(doc.getUbicacion());
                 }
-                if (!isInvalidPath(doc.getRutaArchivoLocal()) && doc.getRutaArchivoLocal().toLowerCase().endsWith(".pdf")) {
+                if (!isInvalidPath(doc.getRutaArchivoLocal()) && doc.getRutaArchivoLocal() != null && doc.getRutaArchivoLocal().toLowerCase().endsWith(".pdf")) {
                     candidatos.add(doc.getRutaArchivoLocal());
                 }
             }
@@ -480,10 +480,11 @@ public class DocumentoController {
             // Agregar ubicaciones generales como fallback
             if (!isInvalidPath(doc.getRutaArchivoLocal())) candidatos.add(doc.getRutaArchivoLocal());
             if (!isInvalidPath(doc.getUbicacion())) candidatos.add(doc.getUbicacion());
-            if (!isInvalidPath(doc.getUbicacionPdf()) && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) candidatos.add(doc.getUbicacionPdf());
+            if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) candidatos.add(doc.getUbicacionPdf());
 
             Path file = null;
             for (String cand : candidatos) {
+                if (cand == null || cand.isBlank()) continue;
                 file = buscarArchivoFisico(cand, "documentos");
                 if (file != null && Files.exists(file) && Files.isReadable(file)) {
                     break;
@@ -517,7 +518,9 @@ public class DocumentoController {
                 else if (filename.endsWith(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
                 else if (filename.endsWith(".xlsx")) contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-                historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
+                try {
+                    historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
+                } catch (Exception ignored) {}
 
                 String ext = "";
                 String diskName = file.getFileName().toString();
