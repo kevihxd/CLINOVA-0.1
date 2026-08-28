@@ -12,8 +12,10 @@ import java.util.Optional;
 @Repository
 public interface DocumentoRepository extends JpaRepository<Documento, Long> {
     Optional<Documento> findByKawakId(Long kawakId);
+    List<Documento> findAllByKawakId(Long kawakId);
     Optional<Documento> findByCodigo(String codigo);
     List<Documento> findAllByCodigo(String codigo);
+    List<Documento> findAllByNombre(String nombre);
     long countByCodigoStartingWith(String prefix);
     boolean existsByCodigo(String codigo);
 

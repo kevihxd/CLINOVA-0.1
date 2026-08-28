@@ -73,9 +73,33 @@ public class DocumentoHistorialService {
             List<Documento> relacionados = new ArrayList<>();
             if (doc != null) {
                 relacionados.add(doc);
-                if (doc.getCodigo() != null && !doc.getCodigo().isBlank()) {
-                    List<Documento> matches = documentoRepository.findAllByCodigo(doc.getCodigo());
-                    for (Documento d : matches) {
+
+                // 1. Coincidencias por Código
+                if (doc.getCodigo() != null && !doc.getCodigo().isBlank() && !"--".equals(doc.getCodigo().trim()) && !"S/C".equalsIgnoreCase(doc.getCodigo().trim())) {
+                    List<Documento> matchesCode = documentoRepository.findAllByCodigo(doc.getCodigo());
+                    for (Documento d : matchesCode) {
+                        if (!docIds.contains(d.getId())) {
+                            docIds.add(d.getId());
+                            relacionados.add(d);
+                        }
+                    }
+                }
+
+                // 2. Coincidencias por Nombre
+                if (doc.getNombre() != null && !doc.getNombre().isBlank()) {
+                    List<Documento> matchesName = documentoRepository.findAllByNombre(doc.getNombre());
+                    for (Documento d : matchesName) {
+                        if (!docIds.contains(d.getId())) {
+                            docIds.add(d.getId());
+                            relacionados.add(d);
+                        }
+                    }
+                }
+
+                // 3. Coincidencias por Kawak ID
+                if (doc.getKawakId() != null) {
+                    List<Documento> matchesKawak = documentoRepository.findAllByKawakId(doc.getKawakId());
+                    for (Documento d : matchesKawak) {
                         if (!docIds.contains(d.getId())) {
                             docIds.add(d.getId());
                             relacionados.add(d);
