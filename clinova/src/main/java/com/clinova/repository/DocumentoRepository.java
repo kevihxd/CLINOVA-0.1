@@ -17,7 +17,19 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
     List<Documento> findAllByCodigo(String codigo);
     List<Documento> findAllByNombre(String nombre);
     long countByCodigoStartingWith(String prefix);
-    boolean existsByCodigo(String codigo);
+    @Query("""
+        SELECT d FROM Documento d 
+        WHERE d.id = :id 
+           OR (:codigo IS NOT NULL AND :codigo <> '' AND :codigo <> '--' AND UPPER(TRIM(d.codigo)) = UPPER(TRIM(:codigo)))
+           OR (:nombre IS NOT NULL AND :nombre <> '' AND UPPER(TRIM(d.nombre)) = UPPER(TRIM(:nombre)))
+           OR (:kId IS NOT NULL AND d.kawakId = :kId)
+    """)
+    List<Documento> findAllRelacionados(
+        @Param("id") Long id,
+        @Param("codigo") String codigo,
+        @Param("nombre") String nombre,
+        @Param("kId") Long kId
+    );
 
     @Query("SELECT d.codigo FROM Documento d WHERE d.codigo LIKE CONCAT(:prefix, '%')")
     List<String> findCodigosByPrefix(@Param("prefix") String prefix);

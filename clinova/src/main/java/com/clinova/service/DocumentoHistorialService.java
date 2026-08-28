@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -66,47 +67,17 @@ public class DocumentoHistorialService {
     public List<DocumentoHistorialDTO> obtenerHistorialPorDocumento(Long documentoId) {
         List<DocumentoHistorialDTO> dtos = new ArrayList<>();
         try {
-            List<Long> docIds = new ArrayList<>();
-            docIds.add(documentoId);
-
             Documento doc = documentoRepository.findById(documentoId).orElse(null);
-            List<Documento> relacionados = new ArrayList<>();
-            if (doc != null) {
-                relacionados.add(doc);
+            if (doc == null) return dtos;
 
-                // 1. Coincidencias por Código
-                if (doc.getCodigo() != null && !doc.getCodigo().isBlank() && !"--".equals(doc.getCodigo().trim()) && !"S/C".equalsIgnoreCase(doc.getCodigo().trim())) {
-                    List<Documento> matchesCode = documentoRepository.findAllByCodigo(doc.getCodigo());
-                    for (Documento d : matchesCode) {
-                        if (!docIds.contains(d.getId())) {
-                            docIds.add(d.getId());
-                            relacionados.add(d);
-                        }
-                    }
-                }
+            List<Documento> relacionados = documentoRepository.findAllRelacionados(
+                    doc.getId(),
+                    doc.getCodigo(),
+                    doc.getNombre(),
+                    doc.getKawakId()
+            );
 
-                // 2. Coincidencias por Nombre
-                if (doc.getNombre() != null && !doc.getNombre().isBlank()) {
-                    List<Documento> matchesName = documentoRepository.findAllByNombre(doc.getNombre());
-                    for (Documento d : matchesName) {
-                        if (!docIds.contains(d.getId())) {
-                            docIds.add(d.getId());
-                            relacionados.add(d);
-                        }
-                    }
-                }
-
-                // 3. Coincidencias por Kawak ID
-                if (doc.getKawakId() != null) {
-                    List<Documento> matchesKawak = documentoRepository.findAllByKawakId(doc.getKawakId());
-                    for (Documento d : matchesKawak) {
-                        if (!docIds.contains(d.getId())) {
-                            docIds.add(d.getId());
-                            relacionados.add(d);
-                        }
-                    }
-                }
-            }
+            List<Long> docIds = relacionados.stream().map(Documento::getId).collect(Collectors.toList());
 
             List<DocumentoHistorial> existingLogs = repository.findByDocumentoIdInOrderByFechaDesc(docIds);
 
