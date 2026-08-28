@@ -271,44 +271,43 @@ public class UsuarioService {
         HojaVida hojaVida = hojaVidaRepository.findByCedula(docNum).orElse(null);
         if (hojaVida == null) {
             hojaVida = HojaVida.builder()
-                    .nombres(nombres)
-                    .apellidos(apellidos)
                     .cedula(docNum)
-                    .fechaNacimiento(parseLocalDate(dto.getFechaNacimiento()))
-                    .direccionResidencia(dto.getDireccionResidencia())
-                    .telefono(dto.getNumeroTelefono())
-                    .arl(dto.getArl())
-                    .eps(dto.getEps())
-                    .afp(dto.getAfp())
-                    .cajaCompensacion(dto.getCajaCompensacion())
-                    .salario(dto.getSalario())
-                    .subsidioTransporte(dto.getSubsidioTransporte())
-                    .fechaIngreso(fechaIngreso)
-                    .estado(dto.getEstado() != null ? dto.getEstado() : "ACTIVO")
-                    .tipoContrato(dto.getTipoContrato())
-                    .fechaRetiro(parseLocalDate(dto.getFechaRetiro()))
-                    .motivoRetiro(dto.getMotivoRetiro())
-                    .correoElectronico(dto.getCorreoElectronico())
-                    .pesv(dto.getPesvFecha())
-                    .perfilVacunacion(dto.getPerfilVacunacion())
-                    .responsableEvaluacionId(dto.getResponsableEvaluacionId())
-                    .usuario(guardado)
-                    .cargos(cargosList)
-                    .sedes(sedes)
-                    .fechaUltimaEdicion(LocalDateTime.now())
-                    .usuarioUltimaEdicion(currentUser)
                     .build();
-        } else {
-            hojaVida.setUsuario(guardado);
-            if (cargo != null && (hojaVida.getCargos() == null || hojaVida.getCargos().isEmpty())) {
-                hojaVida.setCargos(cargosList);
-            }
-            if (!sedes.isEmpty() && (hojaVida.getSedes() == null || hojaVida.getSedes().isEmpty())) {
-                hojaVida.setSedes(sedes);
-            }
-            hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
-            hojaVida.setUsuarioUltimaEdicion(currentUser);
         }
+
+        hojaVida.setUsuario(guardado);
+        hojaVida.setNombres(nombres);
+        hojaVida.setApellidos(apellidos);
+        if (dto.getFechaNacimiento() != null && !dto.getFechaNacimiento().isBlank()) hojaVida.setFechaNacimiento(parseLocalDate(dto.getFechaNacimiento()));
+        if (dto.getDireccionResidencia() != null) hojaVida.setDireccionResidencia(dto.getDireccionResidencia());
+        if (dto.getNumeroTelefono() != null) hojaVida.setTelefono(dto.getNumeroTelefono());
+        if (dto.getArl() != null) hojaVida.setArl(dto.getArl());
+        if (dto.getEps() != null) hojaVida.setEps(dto.getEps());
+        if (dto.getAfp() != null) hojaVida.setAfp(dto.getAfp());
+        if (dto.getCajaCompensacion() != null) hojaVida.setCajaCompensacion(dto.getCajaCompensacion());
+        if (dto.getSalario() != null) hojaVida.setSalario(dto.getSalario());
+        if (dto.getSubsidioTransporte() != null) hojaVida.setSubsidioTransporte(dto.getSubsidioTransporte());
+        hojaVida.setFechaIngreso(fechaIngreso);
+        if (dto.getEstado() != null && !dto.getEstado().isBlank()) {
+            hojaVida.setEstado(dto.getEstado());
+        } else if (hojaVida.getEstado() == null || hojaVida.getEstado().isBlank()) {
+            hojaVida.setEstado("ACTIVO");
+        }
+        if (dto.getTipoContrato() != null && !dto.getTipoContrato().isBlank()) {
+            hojaVida.setTipoContrato(dto.getTipoContrato());
+        }
+        if (dto.getFechaRetiro() != null && !dto.getFechaRetiro().isBlank()) hojaVida.setFechaRetiro(parseLocalDate(dto.getFechaRetiro()));
+        if (dto.getMotivoRetiro() != null) hojaVida.setMotivoRetiro(dto.getMotivoRetiro());
+        if (dto.getCorreoElectronico() != null) hojaVida.setCorreoElectronico(dto.getCorreoElectronico());
+        if (dto.getPesvFecha() != null) hojaVida.setPesv(dto.getPesvFecha());
+        if (dto.getPerfilVacunacion() != null) hojaVida.setPerfilVacunacion(dto.getPerfilVacunacion());
+        if (dto.getResponsableEvaluacionId() != null) hojaVida.setResponsableEvaluacionId(dto.getResponsableEvaluacionId());
+        
+        if (!cargosList.isEmpty()) hojaVida.setCargos(cargosList);
+        if (!sedes.isEmpty()) hojaVida.setSedes(sedes);
+        
+        hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
+        hojaVida.setUsuarioUltimaEdicion(currentUser);
 
         hojaVidaRepository.save(hojaVida);
 
