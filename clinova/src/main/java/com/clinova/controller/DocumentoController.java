@@ -488,17 +488,24 @@ public class DocumentoController {
             }
             doc.setVersion(nuevaVerStr.trim());
 
+            Long fileId = doc.getKawakId() != null ? doc.getKawakId() : doc.getId();
+
             if (archivo != null && !archivo.isEmpty()) {
                 Path folder = this.root.resolve("documentos");
                 Files.createDirectories(folder);
                 String origName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "archivo";
-                String nombreArchivo = UUID.randomUUID() + "_" + origName.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
+                String ext = "";
+                int lastDot = origName.lastIndexOf('.');
+                if (lastDot >= 0) ext = origName.substring(lastDot).toLowerCase();
+                if (ext.isEmpty()) ext = ".docx";
+
+                String nombreArchivo = fileId + ext;
                 Path targetPath = folder.resolve(nombreArchivo);
                 Files.copy(archivo.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 fileLocator.registrarNuevoArchivo(targetPath);
                 doc.setUbicacion(nombreArchivo);
                 doc.setRutaArchivoLocal(nombreArchivo);
-                if (origName.toLowerCase().endsWith(".pdf")) {
+                if (ext.endsWith(".pdf") && (archivoPdf == null || archivoPdf.isEmpty())) {
                     doc.setUbicacionPdf(nombreArchivo);
                 }
             }
@@ -506,7 +513,7 @@ public class DocumentoController {
             if (archivoPdf != null && !archivoPdf.isEmpty()) {
                 Path folder = this.root.resolve("documentos");
                 Files.createDirectories(folder);
-                String nombrePdf = UUID.randomUUID() + "_" + archivoPdf.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
+                String nombrePdf = fileId + ".pdf";
                 Path targetPdfPath = folder.resolve(nombrePdf);
                 Files.copy(archivoPdf.getInputStream(), targetPdfPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 fileLocator.registrarNuevoArchivo(targetPdfPath);
@@ -616,22 +623,34 @@ public class DocumentoController {
             List<String> prefixes = List.of("", "LMD", "LMR", "LMC", "LMP");
             List<String> subdirs = List.of("files/Formatos/1", "files/Documentos/1", "files/Externos/1", "files/Formatos/" + kId, "files/Documentos/" + kId, "files/Externos/" + kId, "files/Formatos", "files/Documentos", "files/Externos");
 
-            if ("original".equalsIgnoreCase(tipo) || tipo == null || tipo.isBlank()) {
-                // Para descarga de archivo original: Probar primero las rutas exactas registradas en BD
+            if ("original".equalsIgnoreCase(tipo)) {
+                // 1. Probar primero ubicaciones registradas en BD que NO sean PDF (Word, Excel, etc.)
+                if (!isInvalidPath(doc.getRutaArchivoLocal()) && !doc.getRutaArchivoLocal().toLowerCase().endsWith(".pdf")) candidatos.add(doc.getRutaArchivoLocal());
+                if (!isInvalidPath(doc.getUbicacion()) && !doc.getUbicacion().toLowerCase().endsWith(".pdf")) candidatos.add(doc.getUbicacion());
+
+                // 2. Probar archivos de Office en disco (.docx, .xlsx, .doc, .xls, .zip)
+                for (String dir : subdirs) {
+                    for (String pfx : prefixes) {
+                        for (String ext : List.of(".docx", ".xlsx", ".doc", ".xls", ".pub", ".zip")) {
+                            candidatos.add(dir + "/" + pfx + kId + ext);
+                            candidatos.add(dir + "/" + pfx + docId + ext);
+                        }
+                    }
+                }
+
+                // 3. Fallback a ubicaciones registradas en BD que sean PDF si no existe archivo de Office
                 if (!isInvalidPath(doc.getRutaArchivoLocal())) candidatos.add(doc.getRutaArchivoLocal());
                 if (!isInvalidPath(doc.getUbicacion())) candidatos.add(doc.getUbicacion());
-                if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
-                    candidatos.add(doc.getUbicacionPdf());
-                }
+                if (!isInvalidPath(doc.getUbicacionPdf()) && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) candidatos.add(doc.getUbicacionPdf());
             } else if ("pdf".equalsIgnoreCase(tipo)) {
-                // Para PDF: probar primero las rutas PDF específicas guardadas en BD
-                if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
+                // Para PDF: probar primero las rutas PDF específicas guardadas en BD y archivos .pdf en disco
+                if (!isInvalidPath(doc.getUbicacionPdf()) && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
                     candidatos.add(doc.getUbicacionPdf());
                 }
-                if (!isInvalidPath(doc.getUbicacion()) && doc.getUbicacion() != null && doc.getUbicacion().toLowerCase().endsWith(".pdf")) {
+                if (!isInvalidPath(doc.getUbicacion()) && doc.getUbicacion().toLowerCase().endsWith(".pdf")) {
                     candidatos.add(doc.getUbicacion());
                 }
-                if (!isInvalidPath(doc.getRutaArchivoLocal()) && doc.getRutaArchivoLocal() != null && doc.getRutaArchivoLocal().toLowerCase().endsWith(".pdf")) {
+                if (!isInvalidPath(doc.getRutaArchivoLocal()) && doc.getRutaArchivoLocal().toLowerCase().endsWith(".pdf")) {
                     candidatos.add(doc.getRutaArchivoLocal());
                 }
                 for (String dir : subdirs) {
