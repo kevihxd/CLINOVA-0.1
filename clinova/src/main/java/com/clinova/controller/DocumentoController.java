@@ -704,23 +704,49 @@ public class DocumentoController {
             }
 
             Resource resource = new UrlResource(file.toUri());
-            String contentType = "application/octet-stream";
-            String filename = file.getFileName().toString().toLowerCase();
 
-            if (filename.endsWith(".pdf")) contentType = MediaType.APPLICATION_PDF_VALUE;
-            else if (filename.endsWith(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            else if (filename.endsWith(".xlsx")) contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-            try {
-                historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
+            byte[] header = new byte[8];
+            try (java.io.InputStream is = Files.newInputStream(file)) {
+                int read = is.read(header);
             } catch (Exception ignored) {}
 
+            boolean isPdf = header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46; // %PDF
+            boolean isZip = header[0] == 0x50 && header[1] == 0x4B && header[2] == 0x03 && header[3] == 0x04; // PK.. (docx/xlsx)
+            boolean isOle = (header[0] & 0xFF) == 0xD0 && (header[1] & 0xFF) == 0xCF && (header[2] & 0xFF) == 0x11 && (header[3] & 0xFF) == 0xE0; // OLE Binary (doc/xls)
+
+            String diskName = file.getFileName().toString().toLowerCase();
             String ext = "";
-            String diskName = file.getFileName().toString();
             int lastDot = diskName.lastIndexOf('.');
             if (lastDot > 0) {
                 ext = diskName.substring(lastDot);
             }
+
+            String contentType = "application/octet-stream";
+
+            if (isPdf || ext.endsWith(".pdf")) {
+                ext = ".pdf";
+                contentType = MediaType.APPLICATION_PDF_VALUE;
+            } else if (isOle) {
+                if (ext.contains("xls")) {
+                    ext = ".xls";
+                    contentType = "application/vnd.ms-excel";
+                } else {
+                    ext = ".doc";
+                    contentType = "application/msword";
+                }
+            } else if (isZip || ext.endsWith(".docx") || ext.endsWith(".xlsx")) {
+                if (ext.contains("xls")) {
+                    ext = ".xlsx";
+                    contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                } else {
+                    ext = ".docx";
+                    contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                }
+            }
+
+            try {
+                historialService.registrarHistorial(id, "DESCARGA", "Archivo descargado o visualizado", usuario);
+            } catch (Exception ignored) {}
 
             String codigoPrefix = (doc.getCodigo() != null && !doc.getCodigo().isBlank() && !"--".equals(doc.getCodigo().trim())) 
                     ? doc.getCodigo().trim() + " - " : "";
@@ -738,7 +764,7 @@ public class DocumentoController {
 
             String encodedFilename = java.net.URLEncoder.encode(safeFilename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
 
-            String disposition = ("pdf".equalsIgnoreCase(tipo) || filename.endsWith(".pdf")) ? "inline" : "attachment";
+            String disposition = ("pdf".equalsIgnoreCase(tipo) || ext.endsWith(".pdf")) ? "inline" : "attachment";
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"" + asciiFilename + "\"; filename*=UTF-8''" + encodedFilename)
