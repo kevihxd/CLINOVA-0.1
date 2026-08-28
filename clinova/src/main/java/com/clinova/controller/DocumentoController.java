@@ -156,36 +156,6 @@ public class DocumentoController {
             @RequestParam(value = "archivoPdf", required = false) MultipartFile archivoPdf,
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            if (archivo != null && !archivo.isEmpty()) {
-                Path folder = this.root.resolve("documentos");
-                Files.createDirectories(folder);
-                String origName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "archivo";
-                String nombreArchivo = UUID.randomUUID() + "_" + origName.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-                Path targetPath = folder.resolve(nombreArchivo);
-                Files.copy(archivo.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                fileLocator.registrarNuevoArchivo(targetPath);
-                documento.setUbicacion(nombreArchivo);
-                documento.setRutaArchivoLocal(nombreArchivo);
-                if (origName.toLowerCase().endsWith(".pdf")) {
-                    documento.setUbicacionPdf(nombreArchivo);
-                }
-            } else if (documento.getUbicacion() == null || documento.getUbicacion().isEmpty()) {
-                documento.setUbicacion("SIN_ARCHIVO");
-            }
-
-            if (archivoPdf != null && !archivoPdf.isEmpty()) {
-                Path folder = this.root.resolve("documentos");
-                Files.createDirectories(folder);
-                String nombrePdf = UUID.randomUUID() + "_" + archivoPdf.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-                Path targetPdfPath = folder.resolve(nombrePdf);
-                Files.copy(archivoPdf.getInputStream(), targetPdfPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                fileLocator.registrarNuevoArchivo(targetPdfPath);
-                documento.setUbicacionPdf(nombrePdf);
-                if (documento.getRutaArchivoLocal() == null || documento.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(documento.getRutaArchivoLocal())) {
-                    documento.setRutaArchivoLocal(nombrePdf);
-                }
-            }
-
             if (documento.getVersion() == null || documento.getVersion().trim().isEmpty()) {
                 documento.setVersion("1");
             }
@@ -212,8 +182,53 @@ public class DocumentoController {
 
             documento.setEstado("EN REVISIÓN");
             Documento guardado = repository.save(documento);
-            String histDesc = (documento.getControlCambios() != null && !documento.getControlCambios().isBlank()) 
-                    ? documento.getControlCambios() 
+
+            // Guardar archivos usando el ID como nombre físico (esquema Kawak)
+            Long fileId = guardado.getKawakId() != null ? guardado.getKawakId() : guardado.getId();
+            boolean updatedFiles = false;
+
+            if (archivo != null && !archivo.isEmpty()) {
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
+                String origName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "archivo";
+                String ext = "";
+                int lastDot = origName.lastIndexOf('.');
+                if (lastDot >= 0) ext = origName.substring(lastDot);
+
+                String nombreArchivo = fileId + ext;
+                Path targetPath = folder.resolve(nombreArchivo);
+                Files.copy(archivo.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPath);
+                guardado.setUbicacion(nombreArchivo);
+                guardado.setRutaArchivoLocal(nombreArchivo);
+                if (origName.toLowerCase().endsWith(".pdf")) {
+                    guardado.setUbicacionPdf(nombreArchivo);
+                }
+                updatedFiles = true;
+            } else if (guardado.getUbicacion() == null || guardado.getUbicacion().isEmpty()) {
+                guardado.setUbicacion("SIN_ARCHIVO");
+            }
+
+            if (archivoPdf != null && !archivoPdf.isEmpty()) {
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
+                String nombrePdf = fileId + ".pdf";
+                Path targetPdfPath = folder.resolve(nombrePdf);
+                Files.copy(archivoPdf.getInputStream(), targetPdfPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPdfPath);
+                guardado.setUbicacionPdf(nombrePdf);
+                if (guardado.getRutaArchivoLocal() == null || guardado.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(guardado.getRutaArchivoLocal())) {
+                    guardado.setRutaArchivoLocal(nombrePdf);
+                }
+                updatedFiles = true;
+            }
+
+            if (updatedFiles) {
+                guardado = repository.save(guardado);
+            }
+
+            String histDesc = (guardado.getControlCambios() != null && !guardado.getControlCambios().isBlank()) 
+                    ? guardado.getControlCambios() 
                     : "Documento creado y enviado a revisión";
             historialService.registrarHistorial(guardado.getId(), "CREACION", histDesc, usuario, guardado.getVersion());
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento enviado a revisión", guardado));
