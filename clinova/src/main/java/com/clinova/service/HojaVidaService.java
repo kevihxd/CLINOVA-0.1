@@ -228,9 +228,19 @@ public class HojaVidaService {
     }
 
     @Transactional(readOnly = true)
-    public HojaVidaResponseDTO obtenerHojaVidaPorCedula(String cedula) {
-        HojaVida hojaVida = hojaVidaRepository.findByCedula(cedula)
-                .orElseThrow(() -> new RuntimeException("Hoja de vida no encontrada"));
+    public HojaVidaResponseDTO obtenerHojaVidaPorCedula(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            throw new RuntimeException("Criterio de búsqueda vacío");
+        }
+        String term = query.trim();
+        HojaVida hojaVida = hojaVidaRepository.findByCedula(term)
+                .orElseGet(() -> {
+                    List<HojaVida> matches = hojaVidaRepository.buscarPorCedulaONombre(term);
+                    if (!matches.isEmpty()) {
+                        return matches.get(0);
+                    }
+                    throw new RuntimeException("Hoja de vida no encontrada para: " + term);
+                });
         return mapearAResponseDTO(hojaVida);
     }
 

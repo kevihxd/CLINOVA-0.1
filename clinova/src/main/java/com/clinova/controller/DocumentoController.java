@@ -549,13 +549,7 @@ public class DocumentoController {
                     candidatos.add(doc.getUbicacionPdf());
                 }
             } else if ("pdf".equalsIgnoreCase(tipo)) {
-                // Para PDF: probar primero candidatos con extensión .pdf
-                for (String dir : subdirs) {
-                    for (String pfx : prefixes) {
-                        candidatos.add(dir + "/" + pfx + kId + ".pdf");
-                        candidatos.add(dir + "/" + pfx + docId + ".pdf");
-                    }
-                }
+                // Para PDF: probar primero las rutas PDF específicas guardadas en BD
                 if (!isInvalidPath(doc.getUbicacionPdf()) && doc.getUbicacionPdf() != null && !doc.getUbicacionPdf().toLowerCase().endsWith(".swf")) {
                     candidatos.add(doc.getUbicacionPdf());
                 }
@@ -564,6 +558,12 @@ public class DocumentoController {
                 }
                 if (!isInvalidPath(doc.getRutaArchivoLocal()) && doc.getRutaArchivoLocal() != null && doc.getRutaArchivoLocal().toLowerCase().endsWith(".pdf")) {
                     candidatos.add(doc.getRutaArchivoLocal());
+                }
+                for (String dir : subdirs) {
+                    for (String pfx : prefixes) {
+                        candidatos.add(dir + "/" + pfx + kId + ".pdf");
+                        candidatos.add(dir + "/" + pfx + docId + ".pdf");
+                    }
                 }
             }
 
