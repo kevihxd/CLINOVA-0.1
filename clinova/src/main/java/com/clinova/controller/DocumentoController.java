@@ -345,12 +345,72 @@ public class DocumentoController {
                         ? guardado.getControlCambios() 
                         : ("Nueva versión " + cambios.getVersion() + " creada e implementada");
                 historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", versionComment, usuario, cambios.getVersion());
-            } else {
-                String modDesc = (guardado.getControlCambios() != null && !guardado.getControlCambios().isBlank()) 
-                        ? guardado.getControlCambios() : "Documento modificado";
-                historialService.registrarHistorial(guardado.getId(), "MODIFICACION", modDesc, usuario, guardado.getVersion());
             }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento actualizado", guardado));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/{id}/actualizar")
+    public ResponseEntity<StructureResponses<Documento>> actualizarContenido(
+            @PathVariable Long id,
+            @ModelAttribute Documento cambios,
+            @RequestParam(value = "archivo", required = false) MultipartFile archivo,
+            @RequestParam(value = "archivoPdf", required = false) MultipartFile archivoPdf,
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Documento doc = repository.findById(id).orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+            Long fileId = doc.getKawakId() != null ? doc.getKawakId() : doc.getId();
+
+            if (archivo != null && !archivo.isEmpty()) {
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
+                String origName = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename() : "archivo";
+                String ext = "";
+                int lastDot = origName.lastIndexOf('.');
+                if (lastDot >= 0) ext = origName.substring(lastDot);
+
+                String nombreArchivo = fileId + ext;
+                Path targetPath = folder.resolve(nombreArchivo);
+                Files.copy(archivo.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPath);
+                doc.setUbicacion(nombreArchivo);
+                doc.setRutaArchivoLocal(nombreArchivo);
+                if (origName.toLowerCase().endsWith(".pdf")) {
+                    doc.setUbicacionPdf(nombreArchivo);
+                }
+            }
+
+            if (archivoPdf != null && !archivoPdf.isEmpty()) {
+                Path folder = this.root.resolve("documentos");
+                Files.createDirectories(folder);
+                String nombrePdf = fileId + ".pdf";
+                Path targetPdfPath = folder.resolve(nombrePdf);
+                Files.copy(archivoPdf.getInputStream(), targetPdfPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                fileLocator.registrarNuevoArchivo(targetPdfPath);
+                doc.setUbicacionPdf(nombrePdf);
+                if (doc.getRutaArchivoLocal() == null || doc.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(doc.getRutaArchivoLocal())) {
+                    doc.setRutaArchivoLocal(nombrePdf);
+                }
+            }
+
+            if (cambios.getNombre() != null && !cambios.getNombre().isBlank()) doc.setNombre(cambios.getNombre());
+            if (cambios.getTipo() != null && !cambios.getTipo().isBlank()) doc.setTipo(cambios.getTipo());
+            if (cambios.getProceso() != null && !cambios.getProceso().isBlank()) doc.setProceso(cambios.getProceso());
+            if (cambios.getSede() != null && !cambios.getSede().isBlank()) doc.setSede(cambios.getSede());
+            if (cambios.getAlcance() != null && !cambios.getAlcance().isBlank()) doc.setAlcance(cambios.getAlcance());
+            if (cambios.getCodigo() != null && !cambios.getCodigo().isBlank()) doc.setCodigo(cambios.getCodigo());
+            if (cambios.getElabora() != null) doc.setElabora(cambios.getElabora());
+            if (cambios.getRevisa() != null) doc.setRevisa(cambios.getRevisa());
+            if (cambios.getAprueba() != null) doc.setAprueba(cambios.getAprueba());
+            if (cambios.getVisualizacion() != null) doc.setVisualizacion(cambios.getVisualizacion());
+            if (cambios.getImpresion() != null) doc.setImpresion(cambios.getImpresion());
+            if (cambios.getDescargaOriginal() != null) doc.setDescargaOriginal(cambios.getDescargaOriginal());
+            if (cambios.getDescargaPdf() != null) doc.setDescargaPdf(cambios.getDescargaPdf());
+
+            Documento guardado = repository.save(doc);
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Contenido del documento actualizado sin alterar la trazabilidad", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
