@@ -371,7 +371,7 @@ public class DocumentoController {
             if (repository.existsById(nuevoId)) {
                 return ResponseEntity.badRequest().body(new StructureResponses<>("ERROR", "El ID " + nuevoId + " ya existe en la base de datos", null));
             }
-            entityManager.createNativeQuery("UPDATE documentos SET id = :nuevoId WHERE id = :id")
+            entityManager.createNativeQuery("UPDATE documentos SET id = :nuevoId, kawak_id = :nuevoId WHERE id = :id OR kawak_id = :id")
                     .setParameter("nuevoId", nuevoId)
                     .setParameter("id", id)
                     .executeUpdate();
@@ -512,7 +512,7 @@ public class DocumentoController {
 
             // 3. Crear el nuevo registro VIGENTE (obtiene un nuevo ID autoincremental)
             Documento nuevoVigente = Documento.builder()
-                    .kawakId(doc.getKawakId() != null ? doc.getKawakId() : doc.getId())
+                    .kawakId(null)
                     .codigo(codigo != null && !codigo.isBlank() ? codigo.trim() : doc.getCodigo())
                     .nombre(nombre != null && !nombre.isBlank() ? nombre.trim() : doc.getNombre())
                     .tipo(tipo != null && !tipo.isBlank() ? tipo.trim() : doc.getTipo())
