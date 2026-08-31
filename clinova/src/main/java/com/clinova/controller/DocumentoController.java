@@ -475,6 +475,9 @@ public class DocumentoController {
             @RequestParam(value = "impresion", required = false) String impresion,
             @RequestParam(value = "descargaOriginal", required = false) String descargaOriginal,
             @RequestParam(value = "descargaPdf", required = false) String descargaPdf,
+            @RequestParam(value = "fechaElaboracion", required = false) String fechaElaboracion,
+            @RequestParam(value = "fechaRevision", required = false) String fechaRevision,
+            @RequestParam(value = "fechaAprobacion", required = false) String fechaAprobacion,
             @AuthenticationPrincipal Usuario usuario) {
         try {
             Documento doc = repository.findById(id).orElseThrow(() -> new RuntimeException("Documento no encontrado"));
@@ -533,9 +536,9 @@ public class DocumentoController {
                     .impresion(impresion != null ? impresion : doc.getImpresion())
                     .descargaOriginal(descargaOriginal != null ? descargaOriginal : doc.getDescargaOriginal())
                     .descargaPdf(descargaPdf != null ? descargaPdf : doc.getDescargaPdf())
-                    .fechaElaboracion(doc.getFechaElaboracion())
-                    .fechaRevision(fechaHoy)
-                    .fechaAprobacion(fechaHoy)
+                    .fechaElaboracion(fechaElaboracion != null && !fechaElaboracion.isBlank() ? fechaElaboracion.trim() : (doc.getFechaElaboracion() != null ? doc.getFechaElaboracion() : "30/06/2026"))
+                    .fechaRevision(fechaRevision != null && !fechaRevision.isBlank() ? fechaRevision.trim() : fechaHoy)
+                    .fechaAprobacion(fechaAprobacion != null && !fechaAprobacion.isBlank() ? fechaAprobacion.trim() : fechaHoy)
                     .controlCambios(descLog)
                     .descripcion(descLog)
                     .ubicacion(doc.getUbicacion())
