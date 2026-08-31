@@ -15,10 +15,13 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +42,9 @@ public class DocumentoController {
     private final DocumentoRepository repository;
     private final DocumentoHistorialService historialService;
     private final FileLocatorService fileLocator;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Value("${uploads.root-path:uploads}")
     private String uploadsRootPath;
@@ -348,6 +354,39 @@ public class DocumentoController {
             }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento actualizado", guardado));
         } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
+        }
+    }
+
+    @Transactional
+    @PutMapping("/{id}/cambiar-id")
+    public ResponseEntity<StructureResponses<Documento>> cambiarIdDocumento(
+            @PathVariable Long id,
+            @RequestParam("nuevoId") Long nuevoId,
+            @RequestParam("password") String password) {
+        try {
+            if (!"admin123".equals(password)) {
+                return ResponseEntity.status(401).body(new StructureResponses<>("ERROR", "Contraseña de administrador incorrecta", null));
+            }
+            if (repository.existsById(nuevoId)) {
+                return ResponseEntity.badRequest().body(new StructureResponses<>("ERROR", "El ID " + nuevoId + " ya existe en la base de datos", null));
+            }
+            entityManager.createNativeQuery("UPDATE documentos SET id = :nuevoId WHERE id = :id")
+                    .setParameter("nuevoId", nuevoId)
+                    .setParameter("id", id)
+                    .executeUpdate();
+            
+            try {
+                entityManager.createNativeQuery("UPDATE documento_historial SET documento_id = :nuevoId WHERE documento_id = :id")
+                        .setParameter("nuevoId", nuevoId)
+                        .setParameter("id", id)
+                        .executeUpdate();
+            } catch (Exception ignored) {}
+
+            Documento actualizado = repository.findById(nuevoId).orElse(null);
+            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "ID actualizado exitosamente a " + nuevoId, actualizado));
+        } catch (Exception e) {
+            log.error("Error al cambiar ID de documento {} a {}: {}", id, nuevoId, e.getMessage());
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
     }
