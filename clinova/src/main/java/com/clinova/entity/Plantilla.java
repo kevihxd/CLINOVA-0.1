@@ -20,9 +20,10 @@ public class Plantilla {
     @Column(nullable = false)
     private String titulo;
 
+    @Column(columnDefinition = "TEXT")
     private String descripcion;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "LONGTEXT", nullable = false)
     private String contenidoHtml;
 
     @Column(nullable = false)
