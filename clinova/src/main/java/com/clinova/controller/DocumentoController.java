@@ -441,44 +441,17 @@ public class DocumentoController {
             Documento doc = repository.findById(id).orElseThrow(() -> new RuntimeException("Documento no encontrado"));
 
             String oldVersion = doc.getVersion();
-
             String prevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank()) 
                     ? doc.getControlCambios() 
                     : (doc.getDescripcion() != null && !doc.getDescripcion().isBlank()) ? doc.getDescripcion() : ("Versión " + oldVersion + " del documento");
 
-            // 1. Archivar versión previa en OBSOLETOS
-            Documento obsoletoDoc = Documento.builder()
-                    .codigo(doc.getCodigo())
-                    .nombre(doc.getNombre())
-                    .tipo(doc.getTipo())
-                    .proceso(doc.getProceso())
-                    .sede(doc.getSede())
-                    .version(oldVersion != null ? oldVersion : "1")
-                    .estado("OBSOLETO")
-                    .metodoCreacion(doc.getMetodoCreacion())
-                    .alcance(doc.getAlcance())
-                    .confidencialidad(doc.getConfidencialidad())
-                    .mesesRevision(doc.getMesesRevision())
-                    .otrosProcesos(doc.getOtrosProcesos())
-                    .normas(doc.getNormas())
-                    .elabora(doc.getElabora())
-                    .revisa(doc.getRevisa())
-                    .aprueba(doc.getAprueba())
-                    .visualizacion(doc.getVisualizacion())
-                    .impresion(doc.getImpresion())
-                    .descargaOriginal(doc.getDescargaOriginal())
-                    .descargaPdf(doc.getDescargaPdf())
-                    .fechaElaboracion(doc.getFechaElaboracion())
-                    .fechaRevision(doc.getFechaRevision())
-                    .fechaAprobacion(doc.getFechaAprobacion())
-                    .rutaArchivoLocal(doc.getRutaArchivoLocal())
-                    .ubicacion(doc.getUbicacion())
-                    .ubicacionPdf(doc.getUbicacionPdf())
-                    .controlCambios(prevDesc)
-                    .descripcion(prevDesc)
-                    .build();
-            Documento obsoletoGuardado = repository.save(obsoletoDoc);
-            historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", prevDesc, usuario, oldVersion);
+            // 1. Archivar versión previa en OBSOLETOS (mantiene su ID histórico)
+            doc.setEstado("OBSOLETO");
+            if (doc.getControlCambios() == null || doc.getControlCambios().isBlank()) {
+                doc.setControlCambios(prevDesc);
+            }
+            repository.save(doc);
+            historialService.registrarHistorial(doc.getId(), "VERSION_ANTERIOR_OBSOLETA", prevDesc, usuario, oldVersion);
 
             // 2. Incrementar número de versión para el nuevo registro vigente
             String nuevaVerStr = version;
@@ -492,9 +465,48 @@ public class DocumentoController {
                 vNum++;
                 nuevaVerStr = String.valueOf(vNum);
             }
-            doc.setVersion(nuevaVerStr.trim());
 
-            Long fileId = doc.getKawakId() != null ? doc.getKawakId() : doc.getId();
+            String descLog = (controlCambios != null && !controlCambios.trim().isEmpty()) 
+                    ? controlCambios.trim() 
+                    : "Creación e implementación de la versión " + nuevaVerStr;
+            String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+            // 3. Crear el nuevo registro VIGENTE (obtiene un nuevo ID autoincremental)
+            Documento nuevoVigente = Documento.builder()
+                    .kawakId(doc.getKawakId() != null ? doc.getKawakId() : doc.getId())
+                    .codigo(codigo != null && !codigo.isBlank() ? codigo.trim() : doc.getCodigo())
+                    .nombre(nombre != null && !nombre.isBlank() ? nombre.trim() : doc.getNombre())
+                    .tipo(tipo != null && !tipo.isBlank() ? tipo.trim() : doc.getTipo())
+                    .proceso(proceso != null && !proceso.isBlank() ? proceso.trim() : doc.getProceso())
+                    .sede(sede != null && !sede.isBlank() ? sede.trim() : doc.getSede())
+                    .version(nuevaVerStr.trim())
+                    .estado("VIGENTE")
+                    .metodoCreacion(doc.getMetodoCreacion())
+                    .alcance(alcance != null && !alcance.isBlank() ? alcance.trim() : doc.getAlcance())
+                    .confidencialidad(doc.getConfidencialidad())
+                    .mesesRevision(doc.getMesesRevision())
+                    .otrosProcesos(doc.getOtrosProcesos())
+                    .normas(doc.getNormas())
+                    .elabora(elabora != null ? elabora : doc.getElabora())
+                    .revisa(revisa != null ? revisa : doc.getRevisa())
+                    .aprueba(aprueba != null ? aprueba : doc.getAprueba())
+                    .visualizacion(visualizacion != null ? visualizacion : doc.getVisualizacion())
+                    .impresion(impresion != null ? impresion : doc.getImpresion())
+                    .descargaOriginal(descargaOriginal != null ? descargaOriginal : doc.getDescargaOriginal())
+                    .descargaPdf(descargaPdf != null ? descargaPdf : doc.getDescargaPdf())
+                    .fechaElaboracion(doc.getFechaElaboracion())
+                    .fechaRevision(fechaHoy)
+                    .fechaAprobacion(fechaHoy)
+                    .controlCambios(descLog)
+                    .descripcion(descLog)
+                    .ubicacion(doc.getUbicacion())
+                    .ubicacionPdf(doc.getUbicacionPdf())
+                    .rutaArchivoLocal(doc.getRutaArchivoLocal())
+                    .build();
+
+            Documento guardado = repository.save(nuevoVigente);
+
+            Long fileId = guardado.getKawakId() != null ? guardado.getKawakId() : guardado.getId();
 
             if (archivo != null && !archivo.isEmpty()) {
                 Path folder = this.root.resolve("documentos");
@@ -509,10 +521,10 @@ public class DocumentoController {
                 Path targetPath = folder.resolve(nombreArchivo);
                 Files.copy(archivo.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 fileLocator.registrarNuevoArchivo(targetPath);
-                doc.setUbicacion(nombreArchivo);
-                doc.setRutaArchivoLocal(nombreArchivo);
+                guardado.setUbicacion(nombreArchivo);
+                guardado.setRutaArchivoLocal(nombreArchivo);
                 if (ext.endsWith(".pdf") && (archivoPdf == null || archivoPdf.isEmpty())) {
-                    doc.setUbicacionPdf(nombreArchivo);
+                    guardado.setUbicacionPdf(nombreArchivo);
                 }
             }
 
@@ -523,44 +535,13 @@ public class DocumentoController {
                 Path targetPdfPath = folder.resolve(nombrePdf);
                 Files.copy(archivoPdf.getInputStream(), targetPdfPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 fileLocator.registrarNuevoArchivo(targetPdfPath);
-                doc.setUbicacionPdf(nombrePdf);
-                if (doc.getRutaArchivoLocal() == null || doc.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(doc.getRutaArchivoLocal())) {
-                    doc.setRutaArchivoLocal(nombrePdf);
+                guardado.setUbicacionPdf(nombrePdf);
+                if (guardado.getRutaArchivoLocal() == null || guardado.getRutaArchivoLocal().isEmpty() || "SIN_ARCHIVO".equals(guardado.getRutaArchivoLocal())) {
+                    guardado.setRutaArchivoLocal(nombrePdf);
                 }
             }
 
-            if (codigo != null && !codigo.isBlank()) doc.setCodigo(codigo.trim());
-            if (nombre != null && !nombre.isBlank()) doc.setNombre(nombre.trim());
-            if (tipo != null && !tipo.isBlank()) doc.setTipo(tipo.trim());
-            if (proceso != null && !proceso.isBlank()) doc.setProceso(proceso.trim());
-            if (sede != null && !sede.isBlank()) doc.setSede(sede.trim());
-            if (alcance != null && !alcance.isBlank()) doc.setAlcance(alcance.trim());
-            if (elabora != null) doc.setElabora(elabora);
-            if (revisa != null) doc.setRevisa(revisa);
-            if (aprueba != null) doc.setAprueba(aprueba);
-            if (visualizacion != null) doc.setVisualizacion(visualizacion);
-            if (impresion != null) doc.setImpresion(impresion);
-            if (descargaOriginal != null) doc.setDescargaOriginal(descargaOriginal);
-            if (descargaPdf != null) doc.setDescargaPdf(descargaPdf);
-
-            if (controlCambios != null && !controlCambios.trim().isEmpty()) {
-                doc.setControlCambios(controlCambios.trim());
-                doc.setDescripcion(controlCambios.trim());
-            } else {
-                doc.setControlCambios("Creación e implementación de la versión " + nuevaVerStr);
-                doc.setDescripcion("Creación e implementación de la versión " + nuevaVerStr);
-            }
-
-            String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-            doc.setFechaRevision(fechaHoy);
-            doc.setFechaAprobacion(fechaHoy);
-            doc.setEstado("VIGENTE");
-
-            Documento guardado = repository.save(doc);
-
-            String descLog = (controlCambios != null && !controlCambios.trim().isEmpty()) 
-                    ? controlCambios.trim() 
-                    : "Creación e implementación de la nueva versión " + nuevaVerStr;
+            guardado = repository.save(guardado);
             historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", descLog, usuario, nuevaVerStr);
 
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Nueva versión creada exitosamente", guardado));
