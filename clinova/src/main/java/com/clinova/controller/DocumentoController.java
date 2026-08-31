@@ -377,7 +377,7 @@ public class DocumentoController {
                     .executeUpdate();
             
             try {
-                entityManager.createNativeQuery("UPDATE documento_historial SET documento_id = :nuevoId WHERE documento_id = :id")
+                entityManager.createNativeQuery("UPDATE documentos_historial SET documento_id = :nuevoId WHERE documento_id = :id")
                         .setParameter("nuevoId", nuevoId)
                         .setParameter("id", id)
                         .executeUpdate();
