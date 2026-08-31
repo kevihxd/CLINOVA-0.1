@@ -423,6 +423,12 @@ public class DocumentoController {
             @RequestParam(value = "controlCambios", required = false) String controlCambios,
             @RequestParam(value = "archivo", required = false) MultipartFile archivo,
             @RequestParam(value = "archivoPdf", required = false) MultipartFile archivoPdf,
+            @RequestParam(value = "codigo", required = false) String codigo,
+            @RequestParam(value = "nombre", required = false) String nombre,
+            @RequestParam(value = "tipo", required = false) String tipo,
+            @RequestParam(value = "proceso", required = false) String proceso,
+            @RequestParam(value = "sede", required = false) String sede,
+            @RequestParam(value = "alcance", required = false) String alcance,
             @RequestParam(value = "elabora", required = false) String elabora,
             @RequestParam(value = "revisa", required = false) String revisa,
             @RequestParam(value = "aprueba", required = false) String aprueba,
@@ -523,6 +529,12 @@ public class DocumentoController {
                 }
             }
 
+            if (codigo != null && !codigo.isBlank()) doc.setCodigo(codigo.trim());
+            if (nombre != null && !nombre.isBlank()) doc.setNombre(nombre.trim());
+            if (tipo != null && !tipo.isBlank()) doc.setTipo(tipo.trim());
+            if (proceso != null && !proceso.isBlank()) doc.setProceso(proceso.trim());
+            if (sede != null && !sede.isBlank()) doc.setSede(sede.trim());
+            if (alcance != null && !alcance.isBlank()) doc.setAlcance(alcance.trim());
             if (elabora != null) doc.setElabora(elabora);
             if (revisa != null) doc.setRevisa(revisa);
             if (aprueba != null) doc.setAprueba(aprueba);

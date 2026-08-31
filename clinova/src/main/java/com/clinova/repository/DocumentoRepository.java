@@ -46,7 +46,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
           AND (d.codigo IS NULL OR d.codigo NOT LIKE 'EXT-%')
           AND (d.proceso IS NULL OR d.proceso NOT LIKE '%EXTERNA Y REQUISITOS%')
           AND (d.tipo IS NULL OR d.tipo NOT LIKE '%EXTERNO%')
-        ORDER BY d.kawakId DESC, d.id DESC
+        ORDER BY d.codigo ASC, d.id ASC
     """)
     List<com.clinova.dto.DocumentoListDTO> findAllLightweight();
 
