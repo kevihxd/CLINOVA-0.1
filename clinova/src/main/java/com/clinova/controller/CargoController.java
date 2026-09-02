@@ -6,6 +6,7 @@ import com.clinova.repository.CargoRepository;
 import com.clinova.repository.PermisoRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -139,62 +140,56 @@ public class CargoController {
         }
     }
 
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
 
+    private void executeNativeQuietly(String sql, Long id) {
+        org.springframework.transaction.support.TransactionTemplate tt = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        tt.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        try {
+            tt.executeWithoutResult(status -> {
+                entityManager.createNativeQuery(sql).setParameter("id", id).executeUpdate();
+            });
+        } catch (Exception ignored) {}
+    }
+
     @DeleteMapping("/{id}")
-    @Transactional
     public ResponseEntity<?> eliminarCargo(@PathVariable Long id) {
         try {
             Cargo cargo = cargoRepository.findById(id).orElse(null);
             if (cargo == null) return ResponseEntity.notFound().build();
 
             // 1. Desvincular usuarios asociados a este cargo
-            try {
-                entityManager.createNativeQuery("UPDATE usuarios SET cargo_id = NULL WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
+            executeNativeQuietly("UPDATE usuarios SET cargo_id = NULL WHERE cargo_id = :id", id);
 
             // 2. Desvincular cargos subordinados que reportaban a este cargo
-            try {
-                entityManager.createNativeQuery("UPDATE cargos SET reporta_a_id = NULL WHERE reporta_a_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
+            executeNativeQuietly("UPDATE cargos SET reporta_a_id = NULL WHERE reporta_a_id = :id", id);
 
             // 3. Eliminar perfil de cargo si existe
-            try {
-                entityManager.createNativeQuery("DELETE FROM perfiles_cargo WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
+            executeNativeQuietly("DELETE FROM perfiles_cargo WHERE cargo_id = :id", id);
 
             // 4. Eliminar permisos asociados en tabla intermedia
-            try {
-                entityManager.createNativeQuery("DELETE FROM cargo_permiso WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
+            executeNativeQuietly("DELETE FROM cargo_permiso WHERE cargo_id = :id", id);
 
             // 5. Eliminar asociaciones en grupos de distribución
-            try {
-                entityManager.createNativeQuery("DELETE FROM grupo_distribucion_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
+            executeNativeQuietly("DELETE FROM grupo_distribucion_cargos WHERE cargo_id = :id", id);
 
             // 6. Eliminar asociaciones en hojas de vida (ambas variantes de tabla)
-            try {
-                entityManager.createNativeQuery("DELETE FROM hojas_vida_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
-            try {
-                entityManager.createNativeQuery("DELETE FROM hoja_vida_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
+            executeNativeQuietly("DELETE FROM hojas_vida_cargos WHERE cargo_id = :id", id);
+            executeNativeQuietly("DELETE FROM hoja_vida_cargos WHERE cargo_id = :id", id);
 
             // 7. Eliminar cualquier otra tabla intermedia de usuarios_cargos
-            try {
-                entityManager.createNativeQuery("DELETE FROM usuario_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
-            try {
-                entityManager.createNativeQuery("DELETE FROM usuarios_cargos WHERE cargo_id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception ignored) {}
+            executeNativeQuietly("DELETE FROM usuario_cargos WHERE cargo_id = :id", id);
+            executeNativeQuietly("DELETE FROM usuarios_cargos WHERE cargo_id = :id", id);
 
             // 8. Eliminar el registro del cargo
-            try {
-                entityManager.createNativeQuery("DELETE FROM cargos WHERE id = :id").setParameter("id", id).executeUpdate();
-            } catch (Exception e) {
-                cargoRepository.delete(cargo);
+            executeNativeQuietly("DELETE FROM cargos WHERE id = :id", id);
+
+            if (cargoRepository.existsById(id)) {
+                cargoRepository.deleteById(id);
             }
 
             return ResponseEntity.ok().build();
