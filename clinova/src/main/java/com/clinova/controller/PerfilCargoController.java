@@ -35,20 +35,19 @@ public class PerfilCargoController {
                     nuevoPerfil.setCargo(cargo);
                     nuevoPerfil.setEstado("ACTIVO");
                     
-                    String nombreCargo = cargo != null ? cargo.getNombre() : "Cargo";
-                    String jefeNombre = (cargo != null && cargo.getReportaA() != null) ? cargo.getReportaA().getNombre() : "Gerente General";
+                    String nombreCargo = cargo != null ? cargo.getNombre() : "";
+                    String jefeNombre = (cargo != null && cargo.getReportaA() != null) ? cargo.getReportaA().getNombre() : "";
                     
                     nuevoPerfil.setJefeInmediato(jefeNombre);
                     nuevoPerfil.setVersion("1");
-                    nuevoPerfil.setFecha("Enero 15-2026");
-                    nuevoPerfil.setMision("Ejercer con excelencia el rol de " + nombreCargo + " de la institución garantizando el cumplimiento de la normatividad y los estándares del SIG.");
-                    
-                    nuevoPerfil.setResponsabilidades("{\"GENERALES\":[\"Ejercer las funciones correspondientes al cargo de " + nombreCargo + " bajo la supervisión de " + jefeNombre + ".\",\"Cumplir con los procedimientos, instructivos y políticas institucionales aprobadas.\",\"Garantizar la confidencialidad, reserva y custodia de la información institucional.\"],\"ADMINISTRATIVAS\":[\"Participar en las reuniones de equipo y capacitaciones convocadas por la empresa.\",\"Mantener en adecuado estado de conservación los insumos, herramientas y equipos asignados.\"],\"SST & CALIDAD\":[\"Cumplir las normas del Sistema de Gestión de Seguridad y Salud en el Trabajo (Decreto 1072/2015).\",\"Participar activamente en las auditorías e iniciativas de mejora continua del SIG.\"]}");
-                    nuevoPerfil.setRequisitosEducacion("{\"nivel\":\"Profesional\",\"titulo\":\"" + nombreCargo + "\",\"puntaje\":15,\"minimo\":15}");
-                    nuevoPerfil.setRequisitosFormacion("{\"minimo\":6,\"items\":[{\"programa\":\"Capacitación en SIG y Calidad\",\"puntaje\":2},{\"programa\":\"Seguridad y Salud en el Trabajo (SST)\",\"puntaje\":2},{\"programa\":\"Atención al Usuario y Trato Humanizado\",\"puntaje\":2}]}");
-                    nuevoPerfil.setRequisitosHabilidades("{\"minimo\":0,\"items\":[{\"habilidad\":\"Trabajo en Equipo\",\"puntaje\":5},{\"habilidad\":\"Orientación al Servicio\",\"puntaje\":5}]}");
-                    nuevoPerfil.setRequisitosExperiencia("{\"cargo\":\"" + nombreCargo + "\",\"duracion\":\"Mínimo 6 meses\",\"puntaje\":15,\"minimo\":30}");
-                    nuevoPerfil.setVersiones("[{\"version\":\"Versión 1\",\"fecha\":\"2026-01-15\",\"descripcion\":\"Perfil oficial\"}]");
+                    nuevoPerfil.setFecha("");
+                    nuevoPerfil.setMision("");
+                    nuevoPerfil.setResponsabilidades("{}");
+                    nuevoPerfil.setRequisitosEducacion("{}");
+                    nuevoPerfil.setRequisitosFormacion("{\"minimo\":0,\"items\":[]}");
+                    nuevoPerfil.setRequisitosHabilidades("{\"minimo\":0,\"items\":[]}");
+                    nuevoPerfil.setRequisitosExperiencia("{}");
+                    nuevoPerfil.setVersiones("[]");
                     
                     if (cargo != null) {
                         try {
