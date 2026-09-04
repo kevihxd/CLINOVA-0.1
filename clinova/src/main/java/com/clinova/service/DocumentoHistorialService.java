@@ -82,9 +82,19 @@ public class DocumentoHistorialService {
             List<DocumentoHistorial> existingLogs = repository.findByDocumentoIdInOrderByFechaDesc(docIds);
 
             for (DocumentoHistorial logEntry : existingLogs) {
+                String accion = (logEntry.getAccion() != null) ? logEntry.getAccion().toUpperCase() : "";
+                String desc = (logEntry.getDescripcion() != null) ? logEntry.getDescripcion() : "";
                 String user = (logEntry.getUsuario() != null && !logEntry.getUsuario().isBlank()) ? logEntry.getUsuario() : "Usuario del Sistema";
+
+                boolean isSystemScheduler = "CAMBIO_ESTADO".equalsIgnoreCase(accion)
+                        || "SEMAFORIZACION".equalsIgnoreCase(accion)
+                        || "Sistema".equalsIgnoreCase(user)
+                        || "System".equalsIgnoreCase(user)
+                        || desc.toLowerCase().contains("cambió automáticamente")
+                        || desc.toLowerCase().contains("días faltantes");
+
                 String ver = logEntry.getVersion();
-                if (ver == null || ver.isBlank() || ver.equals("0")) {
+                if (!isSystemScheduler && (ver == null || ver.isBlank() || ver.equals("0"))) {
                     for (Documento d : relacionados) {
                         if (d.getId().equals(logEntry.getDocumentoId()) && d.getVersion() != null) {
                             ver = d.getVersion();
@@ -92,7 +102,9 @@ public class DocumentoHistorialService {
                         }
                     }
                 }
-                if (ver == null || ver.isBlank()) ver = doc != null && doc.getVersion() != null ? doc.getVersion() : "1";
+                if (!isSystemScheduler && (ver == null || ver.isBlank())) {
+                    ver = doc != null && doc.getVersion() != null ? doc.getVersion() : "1";
+                }
                 dtos.add(new DocumentoHistorialDTO(
                         logEntry.getId(),
                         logEntry.getDocumentoId(),
@@ -108,9 +120,15 @@ public class DocumentoHistorialService {
                 String verStr = d.getVersion() != null ? d.getVersion().trim() : "1";
                 boolean hasVer = dtos.stream().anyMatch(dto -> dto.version() != null && verStr.equalsIgnoreCase(dto.version().trim()));
                 if (!hasVer) {
+                    int vInt = 1;
+                    try { vInt = Integer.parseInt(verStr.replaceAll("[^0-9]", "")); } catch (Exception ignored) {}
+
+                    String dDesc = d.getDescripcion();
+                    boolean isGenericDesc = dDesc != null && dDesc.toLowerCase().contains("creación e implementación inicial");
+
                     String desc = (d.getControlCambios() != null && !d.getControlCambios().isBlank()) ? d.getControlCambios()
-                            : (d.getDescripcion() != null && !d.getDescripcion().isBlank() && !d.getDescripcion().equals("Versión actual del documento")) 
-                            ? d.getDescripcion() : ("Actualización del documento, versión " + verStr);
+                            : (dDesc != null && !dDesc.isBlank() && !dDesc.equals("Versión actual del documento") && !(vInt > 1 && isGenericDesc)) 
+                            ? dDesc : (vInt == 1 ? "Creación y publicación inicial del documento" : ("Actualización del documento, versión " + verStr));
                     String user = (d.getElabora() != null && !d.getElabora().isBlank()) ? d.getElabora() : "Usuario del Sistema";
                     LocalDateTime fecha = LocalDateTime.now();
                     if (d.getFechaAprobacion() != null && !d.getFechaAprobacion().isBlank()) {
