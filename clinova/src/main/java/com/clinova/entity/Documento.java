@@ -149,10 +149,18 @@ public class Documento {
 
     @PostLoad
     private void calcularDiasFaltantes() {
+        String rawTipo = (tipo != null) ? tipo.trim().toUpperCase() : "";
+        if (rawTipo.equals("REGISTRO") || rawTipo.contains("EXTERNO") || rawTipo.equals("FOLLETO")
+                || rawTipo.equals("AFICHE") || rawTipo.equals("CARTELERA") || rawTipo.equals("VOLANTE")
+                || rawTipo.equals("PLEGABLE") || rawTipo.equals("ANEXO")) {
+            this.diasFaltantes = null;
+            return;
+        }
+
         String fechaBase = (fechaAprobacion != null && !fechaAprobacion.trim().isEmpty()) ? fechaAprobacion
                 : (fechaRevision != null && !fechaRevision.trim().isEmpty()) ? fechaRevision
                 : fechaElaboracion;
-        int meses = (mesesRevision != null && mesesRevision > 0) ? mesesRevision : 12;
+        int meses = (mesesRevision != null && mesesRevision > 0) ? mesesRevision : 36;
 
         if (fechaBase != null && !fechaBase.trim().isEmpty() && !"N/A".equalsIgnoreCase(fechaBase.trim())) {
             try {
@@ -189,7 +197,8 @@ public class Documento {
                 }
 
                 if (fecha != null) {
-                    java.time.LocalDate vencimiento = fecha.plusMonths(meses);
+                    // En Kawak la vigencia se calcula con intervalo en días: (meses * 30 días)
+                    java.time.LocalDate vencimiento = fecha.plusDays((long) meses * 30);
                     this.diasFaltantes = (int) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), vencimiento);
                 } else {
                     this.diasFaltantes = null;
