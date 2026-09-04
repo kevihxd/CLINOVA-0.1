@@ -118,10 +118,10 @@ public class FileLocatorService {
             }
         }
 
-        // 4. Búsqueda por sufijo
+        // 4. Búsqueda por sufijo exacto de ruta (requiere separador para evitar falsos positivos)
         for (Map.Entry<String, Path> entry : fileIndex.entrySet()) {
             String entryKey = entry.getKey();
-            if (entryKey.endsWith(key) || entryKey.endsWith("/" + key) || entryKey.endsWith("/" + justName)) {
+            if (entryKey.equals(key) || entryKey.equals(justName) || entryKey.endsWith("/" + key) || entryKey.endsWith("/" + justName) || entryKey.endsWith("\\" + key) || entryKey.endsWith("\\" + justName)) {
                 return entry.getValue();
             }
         }
