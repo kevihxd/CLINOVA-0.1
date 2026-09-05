@@ -33,6 +33,7 @@ public class DocumentoStatusScheduler {
         int vencidos = 0;
         int aVencer = 0;
 
+        for (Documento doc : documentos) {
             // Saltamos los que ya están retirados, obsoletos o no tienen estado
             if (doc.getEstado() == null || doc.getEstado().equalsIgnoreCase("RETIRADO") || doc.getEstado().equalsIgnoreCase("OBSOLETO")) {
                 continue;
