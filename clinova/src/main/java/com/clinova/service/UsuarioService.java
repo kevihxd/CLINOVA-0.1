@@ -445,56 +445,76 @@ public class UsuarioService {
     @Transactional
     public void eliminarUsuario(Long id) {
         try {
-            Usuario usuario = usuarioRepository.findById(id).orElse(null);
-            if (usuario == null) {
-                log.warn("Usuario no encontrado id={}", id);
-                return;
-            }
-
-            Long personaId = usuario.getPersona() != null ? usuario.getPersona().getId() : null;
-
-            // 1. Desvincular relaciones ORM
+            // 1. Obtener IDs relacionados antes de tocar cualquier cosa
+            Long personaId = null;
             try {
-                usuario.setPersona(null);
-                usuario.setCargo(null);
-                usuarioRepository.saveAndFlush(usuario);
+                Object p = entityManager.createNativeQuery("SELECT persona_id FROM usuarios WHERE id = :id")
+                        .setParameter("id", id)
+                        .getSingleResult();
+                if (p != null) personaId = ((Number) p).longValue();
             } catch (Exception ignored) {}
 
+            List<Number> hvIds = new ArrayList<>();
             try {
-                HojaVida hv = hojaVidaRepository.findByUsuario_Id(id).orElse(null);
-                if (hv != null) {
-                    hv.setUsuario(null);
-                    try { hv.getCargos().clear(); } catch (Exception ignored) {}
-                    try { hv.getSedes().clear(); } catch (Exception ignored) {}
-                    hojaVidaRepository.saveAndFlush(hv);
+                @SuppressWarnings("unchecked")
+                List<Object> results = entityManager.createNativeQuery("SELECT id FROM hojas_vida WHERE usuario_id = :id")
+                        .setParameter("id", id)
+                        .getResultList();
+                for (Object obj : results) {
+                    if (obj != null) hvIds.add((Number) obj);
                 }
             } catch (Exception ignored) {}
 
-            // 2. Ejecutar borrado SQL directo para evadir bloqueos de FK
-            try { entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM hojas_vida_cargos WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM hojas_vida_sedes WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM soportes WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM educaciones WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM experiencias_laborales WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM cursos WHERE hoja_vida_id IN (SELECT id FROM hojas_vida WHERE usuario_id = " + id + ")").executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM curso_asignados WHERE usuario_id = " + id).executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM incapacidades WHERE usuario_id = " + id).executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("UPDATE comentarios_actas SET autor_id = NULL WHERE autor_id = " + id).executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM hojas_vida WHERE usuario_id = " + id).executeUpdate(); } catch (Exception ignored) {}
-            try { entityManager.createNativeQuery("DELETE FROM usuarios WHERE id = " + id).executeUpdate(); } catch (Exception ignored) {}
+            // Limpiar la persistencia de Hibernate para que no retenga entidades sucias en memoria
+            entityManager.clear();
+
+            // Deshabilitar temporalmente chequeos de claves foráneas
+            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
+
+            // 2. Eliminar todas las tablas hijas de la Hoja de Vida
+            for (Number hvId : hvIds) {
+                long hid = hvId.longValue();
+                entityManager.createNativeQuery("DELETE FROM hojas_vida_cargos WHERE hoja_vida_id = " + hid).executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM hojas_vida_sedes WHERE hoja_vida_id = " + hid).executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM soportes WHERE hoja_vida_id = " + hid).executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM educaciones WHERE hoja_vida_id = " + hid).executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM experiencias_laborales WHERE hoja_vida_id = " + hid).executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM cursos WHERE hoja_vida_id = " + hid).executeUpdate();
+                try {
+                    entityManager.createNativeQuery("DELETE FROM hojas_vida_historial WHERE hoja_vida_id = " + hid).executeUpdate();
+                } catch (Exception ignored) {}
+                entityManager.createNativeQuery("DELETE FROM hojas_vida WHERE id = " + hid).executeUpdate();
+            }
+            entityManager.createNativeQuery("DELETE FROM hojas_vida WHERE usuario_id = " + id).executeUpdate();
+
+            // 3. Eliminar asignaciones y dependencias del usuario
+            entityManager.createNativeQuery("DELETE FROM curso_asignados WHERE usuario_id = " + id).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM incapacidades WHERE usuario_id = " + id).executeUpdate();
+            entityManager.createNativeQuery("UPDATE comentarios_actas SET autor_id = NULL WHERE autor_id = " + id).executeUpdate();
+
+            // 4. Eliminar registros de vacunas asociados a la persona
             if (personaId != null) {
-                try { entityManager.createNativeQuery("DELETE FROM personas WHERE id = " + personaId).executeUpdate(); } catch (Exception ignored) {}
+                entityManager.createNativeQuery("DELETE FROM registro_vacuna WHERE persona_id = " + personaId).executeUpdate();
             }
-            try { entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate(); } catch (Exception ignored) {}
 
-            try {
-                if (usuarioRepository.existsById(id)) {
-                    usuarioRepository.deleteById(id);
-                }
-            } catch (Exception ignored) {}
+            // 5. Eliminar usuario
+            entityManager.createNativeQuery("DELETE FROM usuarios WHERE id = " + id).executeUpdate();
+
+            // 6. Eliminar persona
+            if (personaId != null) {
+                entityManager.createNativeQuery("DELETE FROM personas WHERE id = " + personaId).executeUpdate();
+            }
+
+            // Restaurar chequeos de claves foráneas
+            entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
+
+            // Limpiar de nuevo el EntityManager para que Hibernate no intente flush de entidades fantasmas
+            entityManager.clear();
+
+            log.info("Usuario id={} y sus dependencias han sido eliminados correctamente", id);
         } catch (Exception e) {
-            log.error("Error en eliminarUsuario id={}: {}", id, e.getMessage(), e);
+            log.error("Error al eliminar usuario id={}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("Error al eliminar usuario: " + e.getMessage(), e);
         }
     }
 

@@ -7,6 +7,7 @@ import com.clinova.repository.UsuarioRepository;
 import com.clinova.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
@@ -153,9 +154,11 @@ public class UsuarioController {
         log.info("Eliminando usuario id={}", id);
         try {
             usuarioService.eliminarUsuario(id);
+            return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            log.warn("Notificacion al eliminar usuario id={}: {}", id, e.getMessage());
+            log.error("Error al eliminar usuario id={}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "No se pudo eliminar el usuario: " + e.getMessage()));
         }
-        return ResponseEntity.noContent().build();
     }
 }
