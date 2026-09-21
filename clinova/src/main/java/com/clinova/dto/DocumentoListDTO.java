@@ -26,6 +26,10 @@ public record DocumentoListDTO(
         String elabora,
         String revisa,
         String aprueba,
+        String visualizacion,
+        String impresion,
+        String descargaOriginal,
+        String descargaPdf,
         String controlCambios,
         String descripcion
 ) {

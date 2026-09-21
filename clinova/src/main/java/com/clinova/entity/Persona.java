@@ -37,4 +37,11 @@ public class Persona {
     @JsonIgnore
     @OneToOne(mappedBy = "persona", fetch = FetchType.LAZY)
     private Usuario usuario;
+
+    public String getNombreCompleto() {
+        return (((primerNombre != null ? primerNombre : "") + " " +
+                (segundoNombre != null ? segundoNombre : "")).trim() + " " +
+                ((primerApellido != null ? primerApellido : "") + " " +
+                (segundoApellido != null ? segundoApellido : "")).trim()).replaceAll("\\s+", " ").trim();
+    }
 }

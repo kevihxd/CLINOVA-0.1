@@ -40,9 +40,10 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
             d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas,
             d.rutaArchivoLocal, d.ubicacion, d.ubicacionPdf, d.fechaAprobacion,
             d.fechaElaboracion, d.fechaRevision, d.elabora, d.revisa, d.aprueba,
+            d.visualizacion, d.impresion, d.descargaOriginal, d.descargaPdf,
             d.controlCambios, d.descripcion
         ) FROM Documento d
-        WHERE (d.estado IS NULL OR UPPER(d.estado) <> 'OBSOLETO')
+        WHERE (d.estado IS NULL OR (UPPER(d.estado) <> 'OBSOLETO' AND UPPER(d.estado) <> 'HISTORICO_VERSION'))
           AND (d.codigo IS NULL OR d.codigo NOT LIKE 'EXT-%')
           AND (d.proceso IS NULL OR d.proceso NOT LIKE '%EXTERNA Y REQUISITOS%')
           AND (d.tipo IS NULL OR d.tipo NOT LIKE '%EXTERNO%')
@@ -56,6 +57,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
             d.estado, d.version, d.mesesRevision, d.metodoCreacion, d.normas,
             d.rutaArchivoLocal, d.ubicacion, d.ubicacionPdf, d.fechaAprobacion,
             d.fechaElaboracion, d.fechaRevision, d.elabora, d.revisa, d.aprueba,
+            d.visualizacion, d.impresion, d.descargaOriginal, d.descargaPdf,
             d.controlCambios, d.descripcion
         ) FROM Documento d
         WHERE UPPER(d.estado) = 'OBSOLETO'

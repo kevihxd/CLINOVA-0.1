@@ -42,6 +42,7 @@ public class DocumentoController {
     private final DocumentoRepository repository;
     private final DocumentoHistorialService historialService;
     private final FileLocatorService fileLocator;
+    private final com.clinova.service.DocumentoPermissionEvaluator permissionEvaluator;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -63,9 +64,15 @@ public class DocumentoController {
     }
 
     @GetMapping
-    public ResponseEntity<StructureResponses<List<com.clinova.dto.DocumentoListDTO>>> obtenerTodos() {
+    public ResponseEntity<StructureResponses<List<com.clinova.dto.DocumentoListDTO>>> obtenerTodos(
+            @AuthenticationPrincipal Usuario usuario) {
         try {
             List<com.clinova.dto.DocumentoListDTO> lista = repository.findAllLightweight();
+            if (usuario != null && !permissionEvaluator.isAdmin(usuario)) {
+                lista = lista.stream()
+                        .filter(d -> permissionEvaluator.canView(d.visualizacion(), usuario))
+                        .toList();
+            }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Listado obtenido", lista));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
@@ -73,9 +80,15 @@ public class DocumentoController {
     }
 
     @GetMapping("/obsoletos")
-    public ResponseEntity<StructureResponses<List<com.clinova.dto.DocumentoListDTO>>> obtenerObsoletos() {
+    public ResponseEntity<StructureResponses<List<com.clinova.dto.DocumentoListDTO>>> obtenerObsoletos(
+            @AuthenticationPrincipal Usuario usuario) {
         try {
             List<com.clinova.dto.DocumentoListDTO> lista = repository.findAllObsoletosLightweight();
+            if (usuario != null && !permissionEvaluator.isAdmin(usuario)) {
+                lista = lista.stream()
+                        .filter(d -> permissionEvaluator.canView(d.visualizacion(), usuario))
+                        .toList();
+            }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Obsoletos obtenidos", lista));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
@@ -88,13 +101,93 @@ public class DocumentoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<StructureResponses<Documento>> obtenerPorId(@PathVariable Long id) {
+    public ResponseEntity<StructureResponses<Documento>> obtenerPorId(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
         try {
             Documento doc = repository.findById(id).orElseThrow();
+            if (usuario != null && !permissionEvaluator.isAdmin(usuario) && !permissionEvaluator.canView(doc.getVisualizacion(), usuario)) {
+                return ResponseEntity.status(403).body(new StructureResponses<>("FORBIDDEN", "No tiene permisos para visualizar este documento", null));
+            }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "OK", doc));
         } catch (Exception e) {
             return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "No encontrado", null));
         }
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<?> eliminarPorId(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+        try {
+            Documento doc = repository.findById(id).orElse(null);
+            if (doc == null) {
+                return ResponseEntity.status(404)
+                        .body(Map.of("success", false, "message", "Documento no encontrado con ID: " + id));
+            }
+
+            // 1. Limpiar historial asociado en documentos_historial
+            try {
+                entityManager.createQuery("DELETE FROM DocumentoHistorial h WHERE h.documentoId = :id")
+                        .setParameter("id", id)
+                        .executeUpdate();
+            } catch (Exception eHist) {
+                log.warn("No se pudo limpiar el historial del documento {}: {}", id, eHist.getMessage());
+            }
+
+            // 2. Eliminar el documento
+            repository.delete(doc);
+
+            log.info("Superadmin eliminó documento: ID={}, Código={}, Nombre={}, Usuario={}",
+                    id, doc.getCodigo(), doc.getNombre(), usuario != null ? usuario.getUsername() : "ADMIN");
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Documento eliminado permanentemente",
+                    "id", id,
+                    "codigo", doc.getCodigo() != null ? doc.getCodigo() : "",
+                    "nombre", doc.getNombre() != null ? doc.getNombre() : ""
+            ));
+        } catch (Exception e) {
+            log.error("Error al eliminar documento ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(Map.of("success", false, "message", "Error al eliminar: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/bulk-delete")
+    @Transactional
+    public ResponseEntity<?> eliminarLotePorIds(@RequestBody List<Long> ids, @AuthenticationPrincipal Usuario usuario) {
+        if (ids == null || ids.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Debe proporcionar al menos un ID"));
+        }
+        List<Map<String, Object>> eliminados = new ArrayList<>();
+        List<Long> noEncontrados = new ArrayList<>();
+        for (Long id : ids) {
+            try {
+                Documento doc = repository.findById(id).orElse(null);
+                if (doc != null) {
+                    try {
+                        entityManager.createQuery("DELETE FROM DocumentoHistorial h WHERE h.documentoId = :id")
+                                .setParameter("id", id)
+                                .executeUpdate();
+                    } catch (Exception ignored) {}
+                    repository.delete(doc);
+                    eliminados.add(Map.of(
+                            "id", id,
+                            "codigo", doc.getCodigo() != null ? doc.getCodigo() : "",
+                            "nombre", doc.getNombre() != null ? doc.getNombre() : ""
+                    ));
+                } else {
+                    noEncontrados.add(id);
+                }
+            } catch (Exception e) {
+                log.error("Error eliminando documento {}: {}", id, e.getMessage());
+            }
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "totalEliminados", eliminados.size(),
+                "eliminados", eliminados,
+                "noEncontrados", noEncontrados
+        ));
     }
 
     @GetMapping("/{id}/historial")
@@ -339,6 +432,7 @@ public class DocumentoController {
             if (cambios.getQuienProtege() != null) doc.setQuienProtege(cambios.getQuienProtege());
             if (cambios.getQuienDisposicion() != null) doc.setQuienDisposicion(cambios.getQuienDisposicion());
             if (cambios.getLogo() != null) doc.setLogo(cambios.getLogo());
+            if (cambios.getEstado() != null && !cambios.getEstado().isBlank()) doc.setEstado(cambios.getEstado().trim());
             if (cambios.getControlCambios() != null && !cambios.getControlCambios().isBlank()) {
                 doc.setControlCambios(cambios.getControlCambios());
                 doc.setDescripcion(cambios.getControlCambios());
@@ -443,6 +537,18 @@ public class DocumentoController {
             if (cambios.getElabora() != null) doc.setElabora(cambios.getElabora());
             if (cambios.getRevisa() != null) doc.setRevisa(cambios.getRevisa());
             if (cambios.getAprueba() != null) doc.setAprueba(cambios.getAprueba());
+            if (cambios.getFechaElaboracion() != null && !cambios.getFechaElaboracion().isBlank()) doc.setFechaElaboracion(cambios.getFechaElaboracion().trim());
+            if (cambios.getFechaRevision() != null && !cambios.getFechaRevision().isBlank()) doc.setFechaRevision(cambios.getFechaRevision().trim());
+            if (cambios.getFechaAprobacion() != null && !cambios.getFechaAprobacion().isBlank()) doc.setFechaAprobacion(cambios.getFechaAprobacion().trim());
+            if (cambios.getControlCambios() != null && !cambios.getControlCambios().isBlank()) {
+                doc.setControlCambios(cambios.getControlCambios().trim());
+                doc.setDescripcion(cambios.getControlCambios().trim());
+            } else if (cambios.getDescripcion() != null && !cambios.getDescripcion().isBlank()) {
+                doc.setDescripcion(cambios.getDescripcion().trim());
+                doc.setControlCambios(cambios.getDescripcion().trim());
+            }
+            if (cambios.getVersion() != null && !cambios.getVersion().isBlank()) doc.setVersion(cambios.getVersion().trim());
+            if (cambios.getEstado() != null && !cambios.getEstado().isBlank()) doc.setEstado(cambios.getEstado().trim());
             if (cambios.getVisualizacion() != null) doc.setVisualizacion(cambios.getVisualizacion());
             if (cambios.getImpresion() != null) doc.setImpresion(cambios.getImpresion());
             if (cambios.getDescargaOriginal() != null) doc.setDescargaOriginal(cambios.getDescargaOriginal());
@@ -536,7 +642,7 @@ public class DocumentoController {
                     .impresion(impresion != null ? impresion : doc.getImpresion())
                     .descargaOriginal(descargaOriginal != null ? descargaOriginal : doc.getDescargaOriginal())
                     .descargaPdf(descargaPdf != null ? descargaPdf : doc.getDescargaPdf())
-                    .fechaElaboracion(fechaElaboracion != null && !fechaElaboracion.isBlank() ? fechaElaboracion.trim() : (doc.getFechaElaboracion() != null ? doc.getFechaElaboracion() : "30/06/2026"))
+                    .fechaElaboracion(fechaElaboracion != null && !fechaElaboracion.isBlank() ? fechaElaboracion.trim() : (doc.getFechaElaboracion() != null ? doc.getFechaElaboracion() : fechaHoy))
                     .fechaRevision(fechaRevision != null && !fechaRevision.isBlank() ? fechaRevision.trim() : fechaHoy)
                     .fechaAprobacion(fechaAprobacion != null && !fechaAprobacion.isBlank() ? fechaAprobacion.trim() : fechaHoy)
                     .controlCambios(descLog)
@@ -646,6 +752,21 @@ public class DocumentoController {
             Documento doc = repository.findById(id).orElse(null);
             if (doc == null) {
                 return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "El documento con ID " + id + " no existe", null));
+            }
+
+            // Validar permisos de descarga según Kawak
+            if ("original".equalsIgnoreCase(tipo)) {
+                if (!permissionEvaluator.canDownloadOriginal(doc.getDescargaOriginal(), usuario)) {
+                    return ResponseEntity.status(403).body(new StructureResponses<>("FORBIDDEN", "No tiene permisos para descargar el archivo original de este documento", null));
+                }
+            } else if ("pdf".equalsIgnoreCase(tipo)) {
+                if (!permissionEvaluator.canDownloadPdf(doc.getDescargaPdf(), usuario)) {
+                    return ResponseEntity.status(403).body(new StructureResponses<>("FORBIDDEN", "No tiene permisos para descargar la copia en PDF de este documento", null));
+                }
+            } else {
+                if (!permissionEvaluator.canView(doc.getVisualizacion(), usuario)) {
+                    return ResponseEntity.status(403).body(new StructureResponses<>("FORBIDDEN", "No tiene permisos para acceder a este documento", null));
+                }
             }
 
             String archivoReal = null;
@@ -811,16 +932,6 @@ public class DocumentoController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<StructureResponses<Void>> eliminar(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
-        try {
-            historialService.registrarHistorial(id, "ELIMINACION", "Documento eliminado del sistema", usuario);
-            repository.deleteById(id);
-            return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Eliminado", null));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
-        }
-    }
 
     private Path buscarArchivoFisico(String nombreArchivo, String subcarpeta) {
         if (nombreArchivo == null || nombreArchivo.trim().isEmpty() || "SIN_ARCHIVO".equalsIgnoreCase(nombreArchivo.trim())) return null;

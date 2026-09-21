@@ -26,6 +26,7 @@ public class AutenticacionService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final DocumentoPermissionEvaluator permissionEvaluator;
 
     public AutenticacionResponseDTO registro(AutenticacionRequestDTO request) {
         Persona persona = Persona.builder()
@@ -92,6 +93,13 @@ public class AutenticacionService {
         if (usuario.getCargo() != null) {
             extraClaims.put("cargo", usuario.getCargo().getNombre());
         }
+        if (usuario.getPersona() != null) {
+            extraClaims.put("nombreCompleto", usuario.getPersona().getNombreCompleto());
+        }
+
+        try {
+            extraClaims.put("grupos", permissionEvaluator.getUserDescriptors(usuario));
+        } catch (Exception ignored) {}
 
         return AutenticacionResponseDTO.builder()
                 .token(jwtService.generarToken(extraClaims, usuario))

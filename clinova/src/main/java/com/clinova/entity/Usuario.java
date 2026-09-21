@@ -220,4 +220,17 @@ public class Usuario implements UserDetails {
             return isHvInit() ? hojaVida.getResponsableEvaluacionId() : null;
         } catch (Throwable e) { return null; }
     }
+
+    public String getNombreCompleto() {
+        if (persona != null) {
+            String pNom = persona.getPrimerNombre() != null ? persona.getPrimerNombre().trim() : "";
+            String sNom = persona.getSegundoNombre() != null ? persona.getSegundoNombre().trim() : "";
+            String pApe = persona.getPrimerApellido() != null ? persona.getPrimerApellido().trim() : "";
+            String sApe = persona.getSegundoApellido() != null ? persona.getSegundoApellido().trim() : "";
+            String full = (pNom + " " + sNom).trim() + " " + (pApe + " " + sApe).trim();
+            full = full.replaceAll("\\s+", " ").trim();
+            if (!full.isEmpty()) return full;
+        }
+        return username != null ? username : "Usuario del Sistema";
+    }
 }

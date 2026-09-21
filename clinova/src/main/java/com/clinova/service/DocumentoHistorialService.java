@@ -31,15 +31,20 @@ public class DocumentoHistorialService {
 
     @Transactional
     public void registrarHistorial(Long documentoId, String accion, String descripcion, Usuario usuario, String version) {
+        registrarHistorial(documentoId, accion, descripcion, usuario, version, LocalDateTime.now());
+    }
+
+    @Transactional
+    public void registrarHistorial(Long documentoId, String accion, String descripcion, Usuario usuario, String version, LocalDateTime fecha) {
         try {
-            String username = (usuario != null) ? usuario.getUsername() : "Sistema";
+            String username = (usuario != null) ? usuario.getNombreCompleto() : "Carlos Humberto Barrera Rozo";
             DocumentoHistorial logEntry = DocumentoHistorial.builder()
                     .documentoId(documentoId)
                     .accion(accion)
                     .descripcion(descripcion)
                     .usuario(username)
                     .version(version)
-                    .fecha(LocalDateTime.now())
+                    .fecha(fecha != null ? fecha : LocalDateTime.now())
                     .build();
             repository.save(logEntry);
         } catch (Exception e) {
@@ -54,7 +59,7 @@ public class DocumentoHistorialService {
                     .documentoId(documentoId)
                     .accion(accion)
                     .descripcion(descripcion)
-                    .usuario(usuario != null ? usuario : "Sistema")
+                    .usuario(usuario != null ? usuario : "Carlos Humberto Barrera Rozo")
                     .fecha(LocalDateTime.now())
                     .build();
             repository.save(logEntry);
@@ -117,8 +122,12 @@ public class DocumentoHistorialService {
             }
 
             for (Documento d : relacionados) {
-                String verStr = d.getVersion() != null ? d.getVersion().trim() : "1";
-                boolean hasVer = dtos.stream().anyMatch(dto -> dto.version() != null && verStr.equalsIgnoreCase(dto.version().trim()));
+                final String verStr = d.getVersion() != null ? d.getVersion().trim() : "1";
+                boolean hasVer = dtos.stream().anyMatch(dto -> {
+                    if (dto.version() == null || !verStr.equalsIgnoreCase(dto.version().trim())) return false;
+                    String acc = (dto.accion() != null) ? dto.accion().toUpperCase() : "";
+                    return !acc.contains("DESCARGA") && !acc.contains("VISUALIZ") && !acc.contains("ESTADO") && !acc.contains("SEMAFOR") && !acc.contains("ELIMINA");
+                });
                 if (!hasVer) {
                     int vInt = 1;
                     try { vInt = Integer.parseInt(verStr.replaceAll("[^0-9]", "")); } catch (Exception ignored) {}
