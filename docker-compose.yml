@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  clinova-mysql:
+    image: mysql:8.0
+    container_name: clinova-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 'Clinova2026$$SecurePass'
+      MYSQL_DATABASE: 'clinova_db'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./clinova_db_produccion.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:3306:3306"
+    command: --max_allowed_packet=1024M --innodb_buffer_pool_size=1024M --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  clinova-backend:
+    image: eclipse-temurin:21-jre
+    container_name: clinova-backend
+    restart: always
+    depends_on:
+      - clinova-mysql
+    environment:
+      SPRING_DATASOURCE_URL: 'jdbc:mysql://clinova-mysql:3306/clinova_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Bogota'
+      SPRING_DATASOURCE_USERNAME: 'root'
+      SPRING_DATASOURCE_PASSWORD: 'Clinova2026$$SecurePass'
+      UPLOADS_ROOT_PATH: '/app/uploads'
+      CLINOVA_STORAGE_PATH: '/app/uploads'
+    volumes:
+      - ./clinova-backend.jar:/app/app.jar
+      - ./uploads:/app/uploads
+    ports:
+      - "127.0.0.1:8080:8080"
+    command: java -Xms512m -Xmx1024m -jar /app/app.jar
+
+volumes:
+  mysql_data:

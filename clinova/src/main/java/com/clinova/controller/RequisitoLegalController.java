@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/contexto/requisitos")
@@ -18,6 +19,11 @@ public class RequisitoLegalController {
     @GetMapping
     public ResponseEntity<StructureResponses<List<RequisitoLegal>>> getAll() {
         return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Lista de requisitos legales obtenida exitosamente", service.findAll()));
+    }
+
+    @GetMapping("/nivel-cumplimiento")
+    public ResponseEntity<StructureResponses<Map<String, Object>>> getNivelCumplimiento() {
+        return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Nivel de cumplimiento calculado exitosamente", service.getNivelCumplimiento()));
     }
 
     @PostMapping
