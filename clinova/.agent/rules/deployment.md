@@ -21,3 +21,14 @@ trigger: always_on
 - Los documentos con `id <= 3458` corresponden a documentos históricos migrados desde Kawak y tienen `kawak_id = id`.
 - Los documentos con `id > 3458` son documentos nuevos creados o actualizados.
 - Al pasar un documento a OBSOLETO, su ID queda bloqueado para siempre (no se reutiliza ni se reasigna a otro documento).
+
+## 3. Acceso a MySQL en el VPS
+- **Contenedor MySQL:** `clinova-mysql` (imagen `mysql:8.0`)
+- **Credenciales:** usuario `root`, contraseña `Clinova2026`
+- **Base de datos:** `clinova_db`
+- **Patrón para ejecutar SQL en el VPS:**
+  ```bash
+  sudo docker exec -i clinova-mysql mysql -u root -p'Clinova2026' clinova_db -e "SQL_AQUÍ;"
+  ```
+- **Nunca** ejecutar comandos SQL directamente en el shell bash del VPS (siempre dentro del contenedor Docker).
+
