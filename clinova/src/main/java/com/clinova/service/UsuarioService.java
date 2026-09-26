@@ -62,26 +62,39 @@ public class UsuarioService {
             
             // Persona
             Map<String, Object> personaMap = null;
+            String pNom = "";
+            String sNom = "";
+            String pApe = "";
+            String sApe = "";
+            String docNum = u.getUsername();
+            String finalCorreo = null;
+
             if (u.getPersona() != null) {
+                Persona p = u.getPersona();
                 personaMap = new HashMap<>();
-                personaMap.put("id", u.getPersona().getId());
-                personaMap.put("tipoDocumento", u.getPersona().getTipoDocumento());
-                personaMap.put("numeroDocumento", u.getPersona().getNumeroDocumento());
-                personaMap.put("primerNombre", u.getPersona().getPrimerNombre());
-                personaMap.put("segundoNombre", u.getPersona().getSegundoNombre());
-                personaMap.put("primerApellido", u.getPersona().getPrimerApellido());
-                personaMap.put("segundoApellido", u.getPersona().getSegundoApellido());
-                personaMap.put("fechaNacimiento", u.getPersona().getFechaNacimiento());
-                personaMap.put("direccionResidencia", u.getPersona().getDireccionResidencia());
-                personaMap.put("numeroTelefono", u.getPersona().getNumeroTelefono());
-                personaMap.put("lugarNacimiento", u.getPersona().getLugarNacimiento());
-                String mailPersona = u.getPersona().getCorreoElectronico();
+                personaMap.put("id", p.getId());
+                personaMap.put("tipoDocumento", p.getTipoDocumento());
+                docNum = p.getNumeroDocumento() != null ? p.getNumeroDocumento() : u.getUsername();
+                personaMap.put("numeroDocumento", docNum);
+                pNom = p.getPrimerNombre() != null ? p.getPrimerNombre() : "";
+                sNom = p.getSegundoNombre() != null ? p.getSegundoNombre() : "";
+                pApe = p.getPrimerApellido() != null ? p.getPrimerApellido() : "";
+                sApe = p.getSegundoApellido() != null ? p.getSegundoApellido() : "";
+                personaMap.put("primerNombre", pNom);
+                personaMap.put("segundoNombre", sNom);
+                personaMap.put("primerApellido", pApe);
+                personaMap.put("segundoApellido", sApe);
+                personaMap.put("fechaNacimiento", p.getFechaNacimiento());
+                personaMap.put("direccionResidencia", p.getDireccionResidencia());
+                personaMap.put("numeroTelefono", p.getNumeroTelefono());
+                personaMap.put("lugarNacimiento", p.getLugarNacimiento());
+                String mailPersona = p.getCorreoElectronico();
                 String mailHv = u.getHojaVida() != null ? u.getHojaVida().getCorreoElectronico() : null;
-                String realHv = sanitizarCorreo(mailHv, u.getUsername(), u.getPersona().getNumeroDocumento());
-                String realP = sanitizarCorreo(mailPersona, u.getUsername(), u.getPersona().getNumeroDocumento());
-                String finalCorreo = realHv != null ? realHv : (realP != null ? realP : (mailHv != null && !mailHv.isBlank() ? mailHv : mailPersona));
+                String realHv = sanitizarCorreo(mailHv, u.getUsername(), docNum);
+                String realP = sanitizarCorreo(mailPersona, u.getUsername(), docNum);
+                finalCorreo = realHv != null ? realHv : (realP != null ? realP : (mailHv != null && !mailHv.isBlank() ? mailHv : mailPersona));
                 personaMap.put("correoElectronico", finalCorreo);
-                personaMap.put("perfilVacunacion", u.getPersona().getPerfilVacunacion());
+                personaMap.put("perfilVacunacion", p.getPerfilVacunacion());
             }
             map.put("persona", personaMap);
             
@@ -104,13 +117,34 @@ public class UsuarioService {
             map.put("tipoContrato", u.getTipoContrato());
             map.put("salario", u.getSalario());
             map.put("subsidioTransporte", u.getSubsidioTransporte());
-            map.put("estado", u.getEstado());
+            map.put("estado", u.getEstado() != null ? u.getEstado() : "ACTIVO");
             map.put("fechaRetiro", u.getFechaRetiro());
             map.put("pesvFecha", u.getPesvFecha());
             map.put("motivoRetiro", u.getMotivoRetiro());
-            map.put("sede", u.getSede());
+
+            // Sede
+            Sede sedeObj = u.getSede();
+            Map<String, Object> sedeMap = null;
+            if (sedeObj != null) {
+                sedeMap = new HashMap<>();
+                sedeMap.put("id", sedeObj.getId());
+                sedeMap.put("nombre", sedeObj.getNombre());
+            }
+            map.put("sede", sedeMap != null ? sedeMap : u.getSedeId());
             map.put("sedeId", u.getSedeId());
+            map.put("sedeNombre", sedeObj != null ? sedeObj.getNombre() : null);
             map.put("responsableEvaluacionId", u.getResponsableEvaluacionId());
+
+            // Helper top-level fields for full compatibility with frontend modules
+            String fullNombres = (pNom + " " + sNom).trim();
+            String fullApellidos = (pApe + " " + sApe).trim();
+            String fullNombre = (fullNombres + " " + fullApellidos).trim();
+            map.put("nombres", !fullNombres.isEmpty() ? fullNombres : u.getUsername());
+            map.put("apellidos", fullApellidos);
+            map.put("nombreCompleto", !fullNombre.isEmpty() ? fullNombre : u.getUsername());
+            map.put("numeroDocumento", docNum);
+            map.put("correoElectronico", finalCorreo);
+            map.put("email", finalCorreo);
             
             list.add(map);
         }

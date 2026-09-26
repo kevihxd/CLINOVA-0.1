@@ -27,9 +27,9 @@ public class UsuarioController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public ResponseEntity<List<Usuario>> listarTodos() {
+    public ResponseEntity<List<Map<String, Object>>> listarTodos() {
         try {
-            return ResponseEntity.ok(usuarioService.listarTodos());
+            return ResponseEntity.ok(usuarioService.listarUsuariosDTO());
         } catch (Exception e) {
             log.error("Error al listar usuarios: {}", e.getMessage(), e);
             return ResponseEntity.ok(java.util.Collections.emptyList());

@@ -30,15 +30,12 @@ public class Cargo {
     @Column(name = "area_semaforizacion", length = 50)
     private String areaSemaforizacion = "ADMINISTRATIVO";
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "cargo_permisos",
             joinColumns = @JoinColumn(name = "cargo_id"),
             inverseJoinColumns = @JoinColumn(name = "permiso_id")
     )
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Set<Permiso> permisos = new HashSet<>();
-
-    public void setId(boolean b) {
-    }
 }
