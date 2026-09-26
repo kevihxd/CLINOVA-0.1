@@ -54,101 +54,129 @@ public class UsuarioService {
         List<Map<String, Object>> list = new ArrayList<>();
         
         for (Usuario u : usuarios) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", u.getId());
-            map.put("username", u.getUsername());
-            map.put("rol", u.getRol() != null ? u.getRol().name() : "USER");
-            map.put("requiereCambioPassword", u.getRequiereCambioPassword() != null ? u.getRequiereCambioPassword() : false);
-            
-            // Persona
-            Map<String, Object> personaMap = null;
-            String pNom = "";
-            String sNom = "";
-            String pApe = "";
-            String sApe = "";
-            String docNum = u.getUsername();
-            String finalCorreo = null;
-
-            if (u.getPersona() != null) {
-                Persona p = u.getPersona();
-                personaMap = new HashMap<>();
-                personaMap.put("id", p.getId());
-                personaMap.put("tipoDocumento", p.getTipoDocumento());
-                docNum = p.getNumeroDocumento() != null ? p.getNumeroDocumento() : u.getUsername();
-                personaMap.put("numeroDocumento", docNum);
-                pNom = p.getPrimerNombre() != null ? p.getPrimerNombre() : "";
-                sNom = p.getSegundoNombre() != null ? p.getSegundoNombre() : "";
-                pApe = p.getPrimerApellido() != null ? p.getPrimerApellido() : "";
-                sApe = p.getSegundoApellido() != null ? p.getSegundoApellido() : "";
-                personaMap.put("primerNombre", pNom);
-                personaMap.put("segundoNombre", sNom);
-                personaMap.put("primerApellido", pApe);
-                personaMap.put("segundoApellido", sApe);
-                personaMap.put("fechaNacimiento", p.getFechaNacimiento());
-                personaMap.put("direccionResidencia", p.getDireccionResidencia());
-                personaMap.put("numeroTelefono", p.getNumeroTelefono());
-                personaMap.put("lugarNacimiento", p.getLugarNacimiento());
-                String mailPersona = p.getCorreoElectronico();
-                String mailHv = u.getHojaVida() != null ? u.getHojaVida().getCorreoElectronico() : null;
-                String realHv = sanitizarCorreo(mailHv, u.getUsername(), docNum);
-                String realP = sanitizarCorreo(mailPersona, u.getUsername(), docNum);
-                finalCorreo = realHv != null ? realHv : (realP != null ? realP : (mailHv != null && !mailHv.isBlank() ? mailHv : mailPersona));
-                personaMap.put("correoElectronico", finalCorreo);
-                personaMap.put("perfilVacunacion", p.getPerfilVacunacion());
+            Map<String, Object> map = mapearUsuarioADTO(u);
+            if (map != null) {
+                list.add(map);
             }
-            map.put("persona", personaMap);
-            
-            // Cargo
-            Map<String, Object> cargoMap = null;
-            if (u.getCargo() != null) {
-                cargoMap = new HashMap<>();
-                cargoMap.put("id", u.getCargo().getId());
-                cargoMap.put("nombre", u.getCargo().getNombre());
-                cargoMap.put("areaSemaforizacion", u.getCargo().getAreaSemaforizacion());
-            }
-            map.put("cargo", cargoMap);
-            
-            // HojaVida fields
-            map.put("arl", u.getArl());
-            map.put("eps", u.getEps());
-            map.put("afp", u.getAfp());
-            map.put("cajaCompensacion", u.getCajaCompensacion());
-            map.put("fechaIngreso", u.getFechaIngreso());
-            map.put("tipoContrato", u.getTipoContrato());
-            map.put("salario", u.getSalario());
-            map.put("subsidioTransporte", u.getSubsidioTransporte());
-            map.put("estado", u.getEstado() != null ? u.getEstado() : "ACTIVO");
-            map.put("fechaRetiro", u.getFechaRetiro());
-            map.put("pesvFecha", u.getPesvFecha());
-            map.put("motivoRetiro", u.getMotivoRetiro());
-
-            // Sede
-            Sede sedeObj = u.getSede();
-            Map<String, Object> sedeMap = null;
-            if (sedeObj != null) {
-                sedeMap = new HashMap<>();
-                sedeMap.put("id", sedeObj.getId());
-                sedeMap.put("nombre", sedeObj.getNombre());
-            }
-            map.put("sede", sedeMap != null ? sedeMap : u.getSedeId());
-            map.put("sedeId", u.getSedeId());
-            map.put("sedeNombre", sedeObj != null ? sedeObj.getNombre() : null);
-            map.put("responsableEvaluacionId", u.getResponsableEvaluacionId());
-
-            // Helper top-level fields for full compatibility with frontend modules
-            String fullNombres = (pNom + " " + sNom).trim();
-            String fullApellidos = (pApe + " " + sApe).trim();
-            String fullNombre = (fullNombres + " " + fullApellidos).trim();
-            map.put("nombres", !fullNombres.isEmpty() ? fullNombres : u.getUsername());
-            map.put("apellidos", fullApellidos);
-            map.put("nombreCompleto", !fullNombre.isEmpty() ? fullNombre : u.getUsername());
-            map.put("numeroDocumento", docNum);
-            map.put("correoElectronico", finalCorreo);
-            map.put("email", finalCorreo);
-            
-            list.add(map);
         }
         return list;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> obtenerUsuarioDTOPorDocumento(String numeroDocumento) {
+        Usuario u = obtenerPorDocumento(numeroDocumento);
+        return mapearUsuarioADTO(u);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> obtenerUsuarioDTOPorId(Long id) {
+        if (id == null) return null;
+        Usuario u = usuarioRepository.findById(id).orElse(null);
+        return mapearUsuarioADTO(u);
+    }
+
+    public Map<String, Object> mapearUsuarioADTO(Usuario u) {
+        if (u == null) return null;
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", u.getId());
+        map.put("username", u.getUsername());
+        map.put("rol", u.getRol() != null ? u.getRol().name() : "USER");
+        map.put("requiereCambioPassword", u.getRequiereCambioPassword() != null ? u.getRequiereCambioPassword() : false);
+        
+        // Persona
+        Map<String, Object> personaMap = null;
+        String pNom = "";
+        String sNom = "";
+        String pApe = "";
+        String sApe = "";
+        String docNum = u.getUsername();
+        String finalCorreo = null;
+
+        if (u.getPersona() != null) {
+            Persona p = u.getPersona();
+            personaMap = new HashMap<>();
+            personaMap.put("id", p.getId());
+            personaMap.put("tipoDocumento", p.getTipoDocumento());
+            docNum = p.getNumeroDocumento() != null ? p.getNumeroDocumento() : u.getUsername();
+            personaMap.put("numeroDocumento", docNum);
+            pNom = p.getPrimerNombre() != null ? p.getPrimerNombre() : "";
+            sNom = p.getSegundoNombre() != null ? p.getSegundoNombre() : "";
+            pApe = p.getPrimerApellido() != null ? p.getPrimerApellido() : "";
+            sApe = p.getSegundoApellido() != null ? p.getSegundoApellido() : "";
+            personaMap.put("primerNombre", pNom);
+            personaMap.put("segundoNombre", sNom);
+            personaMap.put("primerApellido", pApe);
+            personaMap.put("segundoApellido", sApe);
+            personaMap.put("fechaNacimiento", p.getFechaNacimiento());
+            personaMap.put("direccionResidencia", p.getDireccionResidencia());
+            personaMap.put("numeroTelefono", p.getNumeroTelefono());
+            personaMap.put("lugarNacimiento", p.getLugarNacimiento());
+            String mailPersona = p.getCorreoElectronico();
+            String mailHv = null;
+            try {
+                if (u.getHojaVida() != null && org.hibernate.Hibernate.isInitialized(u.getHojaVida())) {
+                    mailHv = u.getHojaVida().getCorreoElectronico();
+                }
+            } catch (Exception ignored) {}
+            String realHv = sanitizarCorreo(mailHv, u.getUsername(), docNum);
+            String realP = sanitizarCorreo(mailPersona, u.getUsername(), docNum);
+            finalCorreo = realHv != null ? realHv : (realP != null ? realP : (mailHv != null && !mailHv.isBlank() ? mailHv : mailPersona));
+            personaMap.put("correoElectronico", finalCorreo);
+            personaMap.put("perfilVacunacion", p.getPerfilVacunacion());
+        }
+        map.put("persona", personaMap);
+        
+        // Cargo
+        Map<String, Object> cargoMap = null;
+        if (u.getCargo() != null) {
+            cargoMap = new HashMap<>();
+            cargoMap.put("id", u.getCargo().getId());
+            cargoMap.put("nombre", u.getCargo().getNombre());
+            cargoMap.put("areaSemaforizacion", u.getCargo().getAreaSemaforizacion());
+        }
+        map.put("cargo", cargoMap);
+        map.put("cargoId", u.getCargo() != null ? u.getCargo().getId() : null);
+        map.put("cargoNombre", u.getCargo() != null ? u.getCargo().getNombre() : null);
+        
+        // HojaVida fields
+        map.put("arl", u.getArl());
+        map.put("eps", u.getEps());
+        map.put("afp", u.getAfp());
+        map.put("cajaCompensacion", u.getCajaCompensacion());
+        map.put("fechaIngreso", u.getFechaIngreso());
+        map.put("tipoContrato", u.getTipoContrato());
+        map.put("salario", u.getSalario());
+        map.put("subsidioTransporte", u.getSubsidioTransporte());
+        map.put("estado", u.getEstado() != null ? u.getEstado() : "ACTIVO");
+        map.put("fechaRetiro", u.getFechaRetiro());
+        map.put("pesvFecha", u.getPesvFecha());
+        map.put("motivoRetiro", u.getMotivoRetiro());
+
+        // Sede
+        Sede sedeObj = u.getSede();
+        Map<String, Object> sedeMap = null;
+        if (sedeObj != null) {
+            sedeMap = new HashMap<>();
+            sedeMap.put("id", sedeObj.getId());
+            sedeMap.put("nombre", sedeObj.getNombre());
+        }
+        map.put("sede", sedeMap != null ? sedeMap : u.getSedeId());
+        map.put("sedeId", u.getSedeId());
+        map.put("sedeNombre", sedeObj != null ? sedeObj.getNombre() : null);
+        map.put("responsableEvaluacionId", u.getResponsableEvaluacionId());
+
+        // Helper top-level fields for full compatibility with frontend modules
+        String fullNombres = (pNom + " " + sNom).trim();
+        String fullApellidos = (pApe + " " + sApe).trim();
+        String fullNombre = (fullNombres + " " + fullApellidos).trim();
+        map.put("nombres", !fullNombres.isEmpty() ? fullNombres : u.getUsername());
+        map.put("apellidos", fullApellidos);
+        map.put("nombreCompleto", !fullNombre.isEmpty() ? fullNombre : u.getUsername());
+        map.put("numeroDocumento", docNum);
+        map.put("correoElectronico", finalCorreo);
+        map.put("email", finalCorreo);
+        
+        return map;
     }
 
     @Transactional(readOnly = true)
@@ -246,11 +274,11 @@ public class UsuarioService {
                 ? dto.getPassword().trim() 
                 : username;
 
-        Role roleEnum = Role.USER;
-        if (dto.getRol() != null && !dto.getRol().trim().isEmpty()) {
-            try {
-                roleEnum = Role.valueOf(dto.getRol().trim().toUpperCase());
-            } catch (Exception ignored) {}
+        Role roleEnum = parseRole(dto.getRol());
+        if (cargo == null && roleEnum == Role.USER_PRACTICANTE) {
+            cargo = cargoRepository.findByNombre("Aprendiz Sena")
+                    .or(() -> cargoRepository.findByNombre("Practicante"))
+                    .orElse(null);
         }
 
         Usuario usuario = Usuario.builder()
@@ -327,8 +355,12 @@ public class UsuarioService {
         } else if (hojaVida.getEstado() == null || hojaVida.getEstado().isBlank()) {
             hojaVida.setEstado("ACTIVO");
         }
-        if (dto.getTipoContrato() != null && !dto.getTipoContrato().isBlank()) {
-            hojaVida.setTipoContrato(dto.getTipoContrato());
+        String tipoContratoVal = dto.getTipoContrato();
+        if ((tipoContratoVal == null || tipoContratoVal.isBlank()) && roleEnum == Role.USER_PRACTICANTE) {
+            tipoContratoVal = "Aprendizaje";
+        }
+        if (tipoContratoVal != null && !tipoContratoVal.isBlank()) {
+            hojaVida.setTipoContrato(tipoContratoVal);
         }
         if (dto.getFechaRetiro() != null && !dto.getFechaRetiro().isBlank()) hojaVida.setFechaRetiro(parseLocalDate(dto.getFechaRetiro()));
         if (dto.getMotivoRetiro() != null) hojaVida.setMotivoRetiro(dto.getMotivoRetiro());
@@ -365,7 +397,13 @@ public class UsuarioService {
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         if (dto.getRol() != null && !dto.getRol().trim().isEmpty()) {
-            usuarioExistente.setRol(parseRole(dto.getRol()));
+            Role roleEnum = parseRole(dto.getRol());
+            usuarioExistente.setRol(roleEnum);
+            if (usuarioExistente.getCargo() == null && roleEnum == Role.USER_PRACTICANTE && dto.getCargoId() == null) {
+                cargoRepository.findByNombre("Aprendiz Sena")
+                        .or(() -> cargoRepository.findByNombre("Practicante"))
+                        .ifPresent(usuarioExistente::setCargo);
+            }
         }
 
         if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
@@ -459,7 +497,15 @@ public class UsuarioService {
         hojaVida.setSubsidioTransporte(dto.getSubsidioTransporte());
         hojaVida.setFechaIngreso(fechaIngreso);
         hojaVida.setEstado(dto.getEstado());
-        hojaVida.setTipoContrato(dto.getTipoContrato());
+        String tipoContratoActualizar = dto.getTipoContrato();
+        if ((tipoContratoActualizar == null || tipoContratoActualizar.isBlank()) && usuarioExistente.getRol() == Role.USER_PRACTICANTE) {
+            if (hojaVida.getTipoContrato() == null || hojaVida.getTipoContrato().isBlank()) {
+                tipoContratoActualizar = "Aprendizaje";
+            }
+        }
+        if (tipoContratoActualizar != null && !tipoContratoActualizar.isBlank()) {
+            hojaVida.setTipoContrato(tipoContratoActualizar);
+        }
         hojaVida.setFechaRetiro(parseLocalDate(dto.getFechaRetiro()));
         hojaVida.setMotivoRetiro(dto.getMotivoRetiro());
         hojaVida.setCorreoElectronico(sanitizarCorreo(dto.getCorreoElectronico(), usuarioExistente.getUsername(), dto.getNumeroDocumento()));
@@ -572,6 +618,7 @@ public class UsuarioService {
             if (upper.contains("ADMIN")) return Role.ADMIN;
             if (upper.contains("HR") || upper.contains("TRABAJADOR") || upper.contains("MANAGER")) return Role.HR_MANAGER;
             if (upper.contains("LIDER")) return Role.LIDER_DE_PROCESO;
+            if (upper.contains("PRACTICANTE") || upper.contains("APRENDIZ") || upper.contains("SENA")) return Role.USER_PRACTICANTE;
             return Role.USER;
         }
     }

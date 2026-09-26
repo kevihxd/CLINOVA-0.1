@@ -120,17 +120,19 @@ public class UsuarioController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<Usuario> actualizarPerfil(
+    public ResponseEntity<Map<String, Object>> actualizarPerfil(
             @AuthenticationPrincipal Usuario usuario,
             @RequestBody UsuarioRequestDTO dto) {
-        return ResponseEntity.ok(usuarioService.actualizarUsuario(usuario.getId(), dto));
+        Usuario u = usuarioService.actualizarUsuario(usuario.getId(), dto);
+        return ResponseEntity.ok(usuarioService.mapearUsuarioADTO(u));
     }
 
     @GetMapping("/documento/{numeroDocumento}")
-    public ResponseEntity<Usuario> obtenerPorDocumento(@PathVariable String numeroDocumento) {
+    @Transactional(readOnly = true)
+    public ResponseEntity<Map<String, Object>> obtenerPorDocumento(@PathVariable String numeroDocumento) {
         try {
-            Usuario u = usuarioService.obtenerPorDocumento(numeroDocumento);
-            return ResponseEntity.ok(u);
+            Map<String, Object> dto = usuarioService.obtenerUsuarioDTOPorDocumento(numeroDocumento);
+            return ResponseEntity.ok(dto);
         } catch (Exception e) {
             log.warn("Error al buscar usuario por documento: {}", numeroDocumento);
             return ResponseEntity.ok(null);
@@ -138,15 +140,17 @@ public class UsuarioController {
     }
 
     @PostMapping
-    public ResponseEntity<Usuario> crear(@RequestBody UsuarioRequestDTO dto) {
+    public ResponseEntity<Map<String, Object>> crear(@RequestBody UsuarioRequestDTO dto) {
         log.info("Creando nuevo usuario: {}", dto.getUsername() != null ? dto.getUsername() : "N/A");
-        return ResponseEntity.ok(usuarioService.crearUsuario(dto));
+        Usuario u = usuarioService.crearUsuario(dto);
+        return ResponseEntity.ok(usuarioService.mapearUsuarioADTO(u));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> actualizar(@PathVariable Long id, @RequestBody UsuarioRequestDTO dto) {
+    public ResponseEntity<Map<String, Object>> actualizar(@PathVariable Long id, @RequestBody UsuarioRequestDTO dto) {
         log.info("Actualizando usuario id={}", id);
-        return ResponseEntity.ok(usuarioService.actualizarUsuario(id, dto));
+        Usuario u = usuarioService.actualizarUsuario(id, dto);
+        return ResponseEntity.ok(usuarioService.mapearUsuarioADTO(u));
     }
 
     @DeleteMapping("/{id}")
