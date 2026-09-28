@@ -31,8 +31,9 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
         @Param("kId") Long kId
     );
 
-    @Query("SELECT d.codigo FROM Documento d WHERE d.codigo LIKE CONCAT(:prefix, '%')")
+    @Query("SELECT d.codigo FROM Documento d WHERE UPPER(TRIM(d.codigo)) LIKE CONCAT(UPPER(:prefix), '%')")
     List<String> findCodigosByPrefix(@Param("prefix") String prefix);
+
 
     @Query("""
         SELECT new com.clinova.dto.DocumentoListDTO(

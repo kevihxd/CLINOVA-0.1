@@ -1034,41 +1034,74 @@ public class DocumentoController {
         
         List<String> codigosExistentes = repository.findCodigosByPrefix(prefix);
         long maxNum = 0;
-        for (String c : codigosExistentes) {
-            if (c != null) {
-                int lastDash = c.lastIndexOf('-');
-                if (lastDash != -1 && lastDash < c.length() - 1) {
-                    try {
-                        long num = Long.parseLong(c.substring(lastDash + 1).trim());
-                        if (num > maxNum) maxNum = num;
-                    } catch (NumberFormatException ignored) {}
+        int maxDigits = 2;
+        if (codigosExistentes != null) {
+            for (String c : codigosExistentes) {
+                if (c != null && !c.isBlank()) {
+                    String clean = c.trim();
+                    int lastDash = clean.lastIndexOf('-');
+                    if (lastDash != -1 && lastDash < clean.length() - 1) {
+                        try {
+                            String numPart = clean.substring(lastDash + 1).trim();
+                            long num = Long.parseLong(numPart);
+                            if (num > maxNum) maxNum = num;
+                            if (numPart.length() > maxDigits) maxDigits = numPart.length();
+                        } catch (NumberFormatException ignored) {}
+                    }
                 }
             }
         }
-        return prefix + (maxNum + 1);
+        long nextNum = maxNum + 1;
+        String formattedNum = String.format("%0" + Math.max(2, maxDigits) + "d", nextNum);
+        return prefix + formattedNum;
     }
 
     private String abreviarProceso(String proceso) {
         if (proceso == null || proceso.isBlank()) return "DOC";
-        String pUpper = proceso.trim().toUpperCase();
-        if (pUpper.contains("TALENTO HUMANO")) return "PTH";
+        String pUpper = proceso.trim().toUpperCase()
+                .replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U");
+
+        if (pUpper.contains("SALUD PUBLICA")) return "PSP";
+        if (pUpper.contains("SEGURIDAD DEL PACIENTE")) return "PGSP";
         if (pUpper.contains("SEGURIDAD Y SALUD")) return "PSST";
-        if (pUpper.contains("SEGURIDAD DEL PACIENTE")) return "PSP";
+        if (pUpper.contains("TALENTO HUMANO")) return "PTH";
         if (pUpper.contains("SIAU")) return "PSIAU";
-        if (pUpper.contains("CALIDAD")) return "PGC";
+        if (pUpper.contains("CALIDAD") || pUpper.contains("PAMEC")) return "PGC";
         if (pUpper.contains("FINANCIERA")) return "PGF";
-        if (pUpper.contains("INFRAESTRUCTURA")) return "PGI";
-        if (pUpper.contains("COMERCIAL")) return "PGCM";
-        if (pUpper.contains("ESTRATÉGICA") || pUpper.contains("ESTRATEGI")) return "PGE";
-        if (pUpper.contains("HUMANIZACIÓN") || pUpper.contains("HUMANIZACI")) return "PGH";
-        if (pUpper.contains("SALUD PÚBLICA") || pUpper.contains("SALUD PUBLICA")) return "PSPU";
-        if (pUpper.contains("CONSULTA EXTERNA")) return "PGCE";
-        if (pUpper.contains("DOMICILIARIO") || pUpper.contains("INTERNACIÓN")) return "PGID";
-        if (pUpper.contains("APOYO DIAGNOSTICO")) return "PGAD";
-        if (pUpper.contains("TECNOLOGÍA") || pUpper.contains("TECNOLOGIA") || pUpper.contains("SISTEMAS")) return "PTSI";
-        if (pUpper.contains("COMPRAS")) return "PGCO";
+        if (pUpper.contains("INFRAESTRUCTURA")) return "PIT";
+        if (pUpper.contains("FACTURACION")) return "PGFA";
+        if (pUpper.contains("CUENTAS MEDICAS")) return "PGCME";
+        if (pUpper.contains("COMERCIAL") || pUpper.contains("MERCADEO")) return "PGCM";
+        if (pUpper.contains("ESTRATEGIC")) return "PGE";
+        if (pUpper.contains("HUMANIZAC")) return "PGH";
+        if (pUpper.contains("INTERNACION") || pUpper.contains("DOMICILIARI")) return "PADCE";
+        if (pUpper.contains("CONSULTA EXTERNA")) return "PCE";
+        if (pUpper.contains("MEDICINA GENERAL")) return "PMG";
+        if (pUpper.contains("ENFERMERIA")) return "PE";
+        if (pUpper.contains("ADMISIONES")) return "PAD";
+        if (pUpper.contains("PSICOLOGIA")) return "PPS";
+        if (pUpper.contains("NUTRICION")) return "PN";
+        if (pUpper.contains("TRABAJO SOCIAL")) return "PTS";
+        if (pUpper.contains("VACUNACION")) return "PVA";
+        if (pUpper.contains("MEDICINA ESPECIALIZADA")) return "PME";
+        if (pUpper.contains("APOYO DIAGNOSTICO") || pUpper.contains("APOYO DIAGNOST")) return "PGADT";
+        if (pUpper.contains("FISIOTERAPIA")) return "PFT";
+        if (pUpper.contains("TERAPIA OCUPACIONAL")) return "PTO";
+        if (pUpper.contains("FONOAUDIOLOGIA")) return "PFO";
+        if (pUpper.contains("FARMACEUTIC")) return "PSF";
+        if (pUpper.contains("DOCENCIA") || pUpper.contains("INVESTIGAC")) return "PGDI";
+        if (pUpper.contains("ODONTOLOGIA")) return "PO";
+        if (pUpper.contains("PEDIATRIA")) return "PPE";
+        if (pUpper.contains("MEDICINA INTERNA")) return "PMI";
+        if (pUpper.contains("ORTOPEDIA")) return "POR";
+        if (pUpper.contains("MEDICINA FISICA") || pUpper.contains("REHABILITAC")) return "PFI";
+        if (pUpper.contains("MEDICINA DEL TRABAJO") || pUpper.contains("MEDICINA LABORAL")) return "PMTL";
+        if (pUpper.contains("TECNOLOGIA") || pUpper.contains("SISTEMAS")) return "PTSI";
         if (pUpper.contains("ARCHIVO")) return "PGA";
-        if (pUpper.contains("COMUNICACIONES")) return "PGCOM";
+        if (pUpper.contains("COMUNICAC")) return "PGCOM";
+        if (pUpper.contains("COMPRAS")) return "PCO";
+        if (pUpper.contains("EDUCACION CONTINUA")) return "PGEC";
+        if (pUpper.contains("MEJORA CONTINUA") || pUpper.contains("ACREDITAC")) return "PGMA";
 
         String[] palabras = pUpper.split("[\\s]+");
         StringBuilder sb = new StringBuilder();
@@ -1083,24 +1116,31 @@ public class DocumentoController {
 
     private String abreviarTipo(String tipo) {
         if (tipo == null || tipo.isBlank()) return "DOC";
-        return switch (tipo.trim().toUpperCase()) {
+        String t = tipo.trim().toUpperCase()
+                .replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U");
+        if (t.length() <= 4 && t.matches("^[A-Z]+$")) return t;
+        return switch (t) {
             case "PROCEDIMIENTO"    -> "PR";
             case "PROTOCOLO"        -> "PT";
             case "FORMATO"          -> "FO";
             case "MANUAL"           -> "MA";
-            case "GUÍA", "GUIA"    -> "GU";
+            case "GUIA"             -> "GU";
             case "INSTRUCTIVO"      -> "IN";
-            case "POLÍTICA", "POLITICA" -> "PO";
+            case "POLITICA"         -> "PO";
             case "PROGRAMA"         -> "PG";
             case "PLAN"             -> "PL";
             case "INFORME"          -> "IF";
             case "ACTA"             -> "AC";
             case "FOLLETO"          -> "FL";
             case "AFICHE"           -> "AF";
-            case "RESOLUCIÓN", "RESOLUCION" -> "RS";
+            case "RESOLUCION"       -> "RS";
             case "CIRCULAR"         -> "CI";
             case "REGISTRO"         -> "RG";
-            default -> tipo.trim().toUpperCase().replaceAll("[AEIOUÁÉÍÓÚ ]", "").substring(0, Math.min(3, tipo.trim().replaceAll("[AEIOUÁÉÍÓÚ ]", "").length()));
+            case "CARACTERIZACION"  -> "CAR";
+            default -> {
+                String consonants = t.replaceAll("[AEIOU ]", "");
+                yield consonants.length() >= 2 ? consonants.substring(0, Math.min(3, consonants.length())) : "DOC";
+            }
         };
     }
 
