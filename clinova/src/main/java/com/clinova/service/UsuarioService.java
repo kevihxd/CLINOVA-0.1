@@ -185,7 +185,7 @@ public class UsuarioService {
         return hojasVida.stream().map(hv -> {
             String nombre = (hv.getNombres() + " " + hv.getApellidos()).trim();
             String estadoRaw = hv.getEstado() != null ? hv.getEstado().trim().toUpperCase() : "";
-            String estado = (estadoRaw.equals("ACTIVO") || estadoRaw.equals("CONTRATADO") || estadoRaw.contains("ACTIVO")) ? "ACTIVO" : "INACTIVO";
+            String estado = (estadoRaw.equals("ACTIVO") || estadoRaw.equals("CONTRATADO") || (estadoRaw.contains("ACTIVO") && !estadoRaw.contains("INACTIVO"))) ? "ACTIVO" : "INACTIVO";
             String sede = hv.getSedes() != null && !hv.getSedes().isEmpty() ? hv.getSedes().get(0).getNombre() : "N/A";
             
             String cargo = "N/A";
