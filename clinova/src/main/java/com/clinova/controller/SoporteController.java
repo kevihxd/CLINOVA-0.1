@@ -7,6 +7,7 @@ import com.clinova.entity.Soporte;
 import com.clinova.entity.Usuario;
 import com.clinova.repository.HojaVidaRepository;
 import com.clinova.repository.SoporteRepository;
+import com.clinova.repository.UsuarioRepository;
 import com.clinova.service.FileLocatorService;
 import com.clinova.service.HojaVidaHistorialService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +43,7 @@ public class SoporteController {
 
     private final SoporteRepository soporteRepository;
     private final HojaVidaRepository hojaVidaRepository;
+    private final UsuarioRepository usuarioRepository;
     private final FileLocatorService fileLocator;
     private final ObjectMapper objectMapper;
     private final HojaVidaHistorialService hojaVidaHistorialService;
@@ -165,14 +168,18 @@ public class SoporteController {
 
     /** Actualiza el tipoDocumento / categoría de un soporte (acepta vía query param o body) */
     @PutMapping({"/{id}/categoria", "/{id}/tipo"})
+    @Transactional
     public ResponseEntity<?> cambiarCategoria(
             @PathVariable Long id,
             @RequestParam(name = "tipoDocumento", required = false) String tipoDocumentoParam,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            Soporte soporte = soporteRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+            Soporte soporte = soporteRepository.findByIdWithHojaVida(id)
+                    .orElseGet(() -> soporteRepository.findById(id).orElse(null));
+            if (soporte == null) {
+                return ResponseEntity.status(404).body(Map.of("status", "ERROR", "message", "Soporte no encontrado con ID: " + id));
+            }
 
             String nuevaCategoria = tipoDocumentoParam;
 
@@ -215,14 +222,18 @@ public class SoporteController {
 
     /** Actualiza el nombreArchivo de un soporte (acepta vía query param o body) */
     @PutMapping("/{id}/nombre")
+    @Transactional
     public ResponseEntity<?> cambiarNombre(
             @PathVariable Long id,
             @RequestParam(name = "nombreArchivo", required = false) String nombreParam,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            Soporte soporte = soporteRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+            Soporte soporte = soporteRepository.findByIdWithHojaVida(id)
+                    .orElseGet(() -> soporteRepository.findById(id).orElse(null));
+            if (soporte == null) {
+                return ResponseEntity.status(404).body(Map.of("status", "ERROR", "message", "Soporte no encontrado con ID: " + id));
+            }
 
             String nuevoNombre = nombreParam;
 
@@ -265,24 +276,62 @@ public class SoporteController {
 
     /** Elimina un soporte por ID (y su archivo físico del disco si existe) */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminar(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+    @Transactional
+    public ResponseEntity<?> eliminar(
+            @PathVariable Long id,
+            @RequestParam(name = "hojaVidaId", required = false) Long hojaVidaIdParam,
+            @RequestParam(name = "tipoDocumento", required = false) String tipoDocumentoParam,
+            @RequestParam(name = "nombreArchivo", required = false) String nombreArchivoParam,
+            @RequestParam(name = "usuario", required = false) String usuarioParam,
+            @AuthenticationPrincipal Usuario usuario) {
         try {
+            // Determinar el usuario que realiza la operación
+            Usuario userEjecutor = usuario;
+            String nombreUsuario = null;
+            if (userEjecutor != null && userEjecutor.getUsername() != null && !userEjecutor.getUsername().trim().isEmpty()) {
+                nombreUsuario = userEjecutor.getUsername();
+            } else if (usuarioParam != null && !usuarioParam.trim().isEmpty()) {
+                nombreUsuario = usuarioParam.trim();
+                userEjecutor = usuarioRepository.findByUsername(nombreUsuario).orElse(null);
+            }
+            if (userEjecutor == null) {
+                try {
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getName() != null && !auth.getName().equals("anonymousUser")) {
+                        nombreUsuario = auth.getName();
+                        userEjecutor = usuarioRepository.findByUsername(nombreUsuario).orElse(null);
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            if (nombreUsuario == null || nombreUsuario.trim().isEmpty()) {
+                nombreUsuario = "Sistema";
+            }
+
             // Verificar permisos: Los contratistas (USER / USER_PRACTICANTE) no pueden eliminar soportes
-            if (usuario != null && usuario.getRol() != Role.ADMIN && usuario.getRol() != Role.HR_MANAGER) {
+            if (userEjecutor != null && userEjecutor.getRol() != Role.ADMIN && userEjecutor.getRol() != Role.HR_MANAGER) {
                 log.warn("Acceso denegado: Usuario {} con rol {} intentó eliminar el soporte con ID {}", 
-                        usuario.getUsername(), usuario.getRol(), id);
+                        userEjecutor.getUsername(), userEjecutor.getRol(), id);
                 return ResponseEntity.status(403).body(Map.of(
                         "status", "ERROR", 
                         "message", "Los contratistas no tienen permisos para eliminar soportes documentales."
                 ));
             }
 
-            Soporte soporte = soporteRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+            Soporte soporte = soporteRepository.findByIdWithHojaVida(id)
+                    .orElseGet(() -> soporteRepository.findById(id).orElse(null));
 
-            Long hojaVidaId = soporte.getHojaVida() != null ? soporte.getHojaVida().getId() : null;
-            String nombreArchivo = soporte.getNombreArchivo();
-            String tipoDocumento = soporte.getTipoDocumento();
+            if (soporte == null) {
+                return ResponseEntity.status(404).body(Map.of("status", "ERROR", "message", "Soporte no encontrado con ID: " + id));
+            }
+
+            Long hojaVidaId = (soporte.getHojaVida() != null) ? soporte.getHojaVida().getId() : hojaVidaIdParam;
+            String nombreArchivo = (soporte.getNombreArchivo() != null && !soporte.getNombreArchivo().trim().isEmpty())
+                    ? soporte.getNombreArchivo().trim()
+                    : (nombreArchivoParam != null ? nombreArchivoParam.trim() : "");
+            String tipoDocumento = (soporte.getTipoDocumento() != null && !soporte.getTipoDocumento().trim().isEmpty())
+                    ? soporte.getTipoDocumento().trim()
+                    : (tipoDocumentoParam != null ? tipoDocumentoParam.trim() : "General");
 
             // Intentar eliminar el archivo físico del disco (no crítico si falla)
             if (soporte.getRutaArchivo() != null && !soporte.getRutaArchivo().isEmpty()) {
@@ -302,27 +351,35 @@ public class SoporteController {
             // Registrar en trazabilidad detallada
             try {
                 if (hojaVidaId != null) {
+                    String descripcion = (nombreArchivo != null && !nombreArchivo.isEmpty())
+                            ? "Se eliminó adjunto '" + nombreArchivo + "' en carpeta \"" + tipoDocumento + "\""
+                            : "Se eliminó adjunto en carpeta \"" + tipoDocumento + "\"";
+
                     hojaVidaHistorialService.registrarHistorial(
                             hojaVidaId,
-                            "ELIMINACION_SOPORTE",
-                            "Se eliminó el soporte '" + (nombreArchivo != null ? nombreArchivo : "archivo") + "' de la carpeta '" + (tipoDocumento != null ? tipoDocumento : "Sin categoría") + "'",
-                            usuario
+                            "ELIMINACION",
+                            descripcion,
+                            nombreUsuario
                     );
+                    log.info("Historial registrado con éxito [hojaVidaId={}, usuario={}, desc={}]", hojaVidaId, nombreUsuario, descripcion);
+                } else {
+                    log.warn("No se pudo asociar hojaVidaId para el soporte eliminado con id={}", id);
                 }
             } catch (Exception exHist) {
-                log.warn("No se pudo registrar historial para eliminación de soporte: {}", exHist.getMessage());
+                log.error("Error al registrar historial para eliminación de soporte: {}", exHist.getMessage(), exHist);
             }
 
-            log.info("Soporte eliminado [id={}, usuario={}]", id, usuario != null ? usuario.getUsername() : "desconocido");
+            log.info("Soporte eliminado correctamente [id={}, usuario={}]", id, nombreUsuario);
             return ResponseEntity.ok(Map.of("status", "OK", "message", "Documento eliminado correctamente"));
         } catch (Exception e) {
-            log.error("Error al eliminar soporte [id={}]: {}", id, e.getMessage());
+            log.error("Error al eliminar soporte [id={}]: {}", id, e.getMessage(), e);
             return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", e.getMessage()));
         }
     }
 
     /** Rechaza un soporte registrando motivo */
     @PutMapping("/{id}/rechazar")
+    @Transactional
     public ResponseEntity<?> rechazarSoporte(
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
@@ -332,8 +389,11 @@ public class SoporteController {
                 return ResponseEntity.status(403).body(Map.of("status", "ERROR", "message", "No tiene permisos para rechazar soportes."));
             }
 
-            Soporte soporte = soporteRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+            Soporte soporte = soporteRepository.findByIdWithHojaVida(id)
+                    .orElseGet(() -> soporteRepository.findById(id).orElse(null));
+            if (soporte == null) {
+                return ResponseEntity.status(404).body(Map.of("status", "ERROR", "message", "Soporte no encontrado con ID: " + id));
+            }
 
             soporte.setEstado("Rechazado");
             Soporte guardado = soporteRepository.save(soporte);

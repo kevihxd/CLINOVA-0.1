@@ -18,14 +18,25 @@ public class HojaVidaHistorialService {
 
     private final HojaVidaHistorialRepository repository;
 
+    private String cleanMojibake(String text) {
+        if (text == null) return null;
+        return text
+                .replace("Ã¡", "á").replace("Ã©", "é").replace("Ã­", "í").replace("Ã³", "ó").replace("Ãº", "ú").replace("Ã±", "ñ")
+                .replace("Ã", "Á").replace("Ã‰", "É").replace("Ã", "Í").replace("Ã“", "Ó").replace("Ãš", "Ú").replace("Ã‘", "Ñ")
+                .replace("Ã", "í")
+                .replace("Â·", "·").replace("Â", "");
+    }
+
     @Transactional
     public void registrarHistorial(Long hojaVidaId, String accion, String descripcion, Usuario usuario) {
-        String username = (usuario != null) ? usuario.getUsername() : "Sistema";
+        String username = (usuario != null && usuario.getUsername() != null && !usuario.getUsername().trim().isEmpty()) 
+                ? usuario.getUsername() 
+                : "Sistema";
         HojaVidaHistorial log = HojaVidaHistorial.builder()
                 .hojaVidaId(hojaVidaId)
                 .accion(accion)
-                .descripcion(descripcion)
-                .usuario(username)
+                .descripcion(cleanMojibake(descripcion))
+                .usuario(cleanMojibake(username))
                 .fecha(LocalDateTime.now())
                 .build();
         repository.save(log);
@@ -33,11 +44,12 @@ public class HojaVidaHistorialService {
 
     @Transactional
     public void registrarHistorial(Long hojaVidaId, String accion, String descripcion, String usuario) {
+        String username = (usuario != null && !usuario.trim().isEmpty()) ? usuario.trim() : "Sistema";
         HojaVidaHistorial log = HojaVidaHistorial.builder()
                 .hojaVidaId(hojaVidaId)
                 .accion(accion)
-                .descripcion(descripcion)
-                .usuario(usuario != null ? usuario : "Sistema")
+                .descripcion(cleanMojibake(descripcion))
+                .usuario(cleanMojibake(username))
                 .fecha(LocalDateTime.now())
                 .build();
         repository.save(log);
@@ -50,8 +62,8 @@ public class HojaVidaHistorialService {
                         log.getId(),
                         log.getHojaVidaId(),
                         log.getAccion(),
-                        log.getDescripcion(),
-                        log.getUsuario(),
+                        cleanMojibake(log.getDescripcion()),
+                        cleanMojibake(log.getUsuario()),
                         log.getFecha()
                 ))
                 .collect(Collectors.toList());
