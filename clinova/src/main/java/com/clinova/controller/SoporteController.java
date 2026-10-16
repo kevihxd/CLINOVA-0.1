@@ -2,11 +2,13 @@ package com.clinova.controller;
 
 import com.clinova.dto.StructureResponses;
 import com.clinova.entity.HojaVida;
+import com.clinova.entity.Role;
 import com.clinova.entity.Soporte;
 import com.clinova.entity.Usuario;
 import com.clinova.repository.HojaVidaRepository;
 import com.clinova.repository.SoporteRepository;
 import com.clinova.service.FileLocatorService;
+import com.clinova.service.HojaVidaHistorialService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +43,7 @@ public class SoporteController {
     private final HojaVidaRepository hojaVidaRepository;
     private final FileLocatorService fileLocator;
     private final ObjectMapper objectMapper;
+    private final HojaVidaHistorialService hojaVidaHistorialService;
 
     @Value("${uploads.root-path:uploads}")
     private String uploadsRootPath;
@@ -102,6 +105,19 @@ public class SoporteController {
 
             Soporte guardado = soporteRepository.save(soporte);
             log.info("Soporte subido [hojaVidaId={}, tipo={}, archivo={}]", hojaVidaId, tipoDocumento, uniqueName);
+
+            // Registrar en trazabilidad detallada
+            try {
+                hojaVidaHistorialService.registrarHistorial(
+                        hojaVidaId,
+                        "CARGA_SOPORTE",
+                        "Se subió el soporte '" + (originalName != null ? originalName : uniqueName) + "' en la carpeta '" + tipoDocumento + "'",
+                        usuario
+                );
+            } catch (Exception exHist) {
+                log.warn("No se pudo registrar historial para carga de soporte: {}", exHist.getMessage());
+            }
+
             return ResponseEntity.ok(guardado);
 
         } catch (IOException e) {
@@ -171,8 +187,23 @@ public class SoporteController {
                 return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", "Debe especificar la nueva categoría o tipoDocumento"));
             }
 
+            String catAnterior = soporte.getTipoDocumento();
             soporte.setTipoDocumento(nuevaCategoria.trim());
             Soporte actualizado = soporteRepository.save(soporte);
+
+            // Registrar en trazabilidad detallada
+            try {
+                if (soporte.getHojaVida() != null) {
+                    hojaVidaHistorialService.registrarHistorial(
+                            soporte.getHojaVida().getId(),
+                            "CAMBIO_CARPETA_SOPORTE",
+                            "Se movió el soporte '" + soporte.getNombreArchivo() + "' de la carpeta '" + (catAnterior != null ? catAnterior : "Sin categoría") + "' a la carpeta '" + nuevaCategoria.trim() + "'",
+                            usuario
+                    );
+                }
+            } catch (Exception exHist) {
+                log.warn("No se pudo registrar historial para cambio de carpeta: {}", exHist.getMessage());
+            }
 
             log.info("Tipo/Categoría de soporte actualizada [id={}, nuevaCategoria={}]", id, nuevaCategoria);
             return ResponseEntity.ok(Map.of("status", "OK", "message", "Categoría actualizada correctamente", "data", actualizado));
@@ -206,8 +237,23 @@ public class SoporteController {
                 return ResponseEntity.badRequest().body(Map.of("status", "ERROR", "message", "Debe especificar el nuevo nombre del archivo"));
             }
 
+            String nombreAnterior = soporte.getNombreArchivo();
             soporte.setNombreArchivo(nuevoNombre.trim());
             Soporte actualizado = soporteRepository.save(soporte);
+
+            // Registrar en trazabilidad detallada
+            try {
+                if (soporte.getHojaVida() != null) {
+                    hojaVidaHistorialService.registrarHistorial(
+                            soporte.getHojaVida().getId(),
+                            "RENOMBRAR_SOPORTE",
+                            "Se cambió el nombre del soporte de '" + nombreAnterior + "' a '" + nuevoNombre.trim() + "' (carpeta '" + (soporte.getTipoDocumento() != null ? soporte.getTipoDocumento() : "Sin categoría") + "')",
+                            usuario
+                    );
+                }
+            } catch (Exception exHist) {
+                log.warn("No se pudo registrar historial para renombrar soporte: {}", exHist.getMessage());
+            }
 
             log.info("Nombre de soporte actualizado [id={}, nuevoNombre={}]", id, nuevoNombre);
             return ResponseEntity.ok(Map.of("status", "OK", "message", "Nombre actualizado correctamente", "data", actualizado));
@@ -221,8 +267,22 @@ public class SoporteController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
         try {
+            // Verificar permisos: Los contratistas (USER / USER_PRACTICANTE) no pueden eliminar soportes
+            if (usuario != null && usuario.getRol() != Role.ADMIN && usuario.getRol() != Role.HR_MANAGER) {
+                log.warn("Acceso denegado: Usuario {} con rol {} intentó eliminar el soporte con ID {}", 
+                        usuario.getUsername(), usuario.getRol(), id);
+                return ResponseEntity.status(403).body(Map.of(
+                        "status", "ERROR", 
+                        "message", "Los contratistas no tienen permisos para eliminar soportes documentales."
+                ));
+            }
+
             Soporte soporte = soporteRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+
+            Long hojaVidaId = soporte.getHojaVida() != null ? soporte.getHojaVida().getId() : null;
+            String nombreArchivo = soporte.getNombreArchivo();
+            String tipoDocumento = soporte.getTipoDocumento();
 
             // Intentar eliminar el archivo físico del disco (no crítico si falla)
             if (soporte.getRutaArchivo() != null && !soporte.getRutaArchivo().isEmpty()) {
@@ -238,10 +298,63 @@ public class SoporteController {
             }
 
             soporteRepository.deleteById(id);
+
+            // Registrar en trazabilidad detallada
+            try {
+                if (hojaVidaId != null) {
+                    hojaVidaHistorialService.registrarHistorial(
+                            hojaVidaId,
+                            "ELIMINACION_SOPORTE",
+                            "Se eliminó el soporte '" + (nombreArchivo != null ? nombreArchivo : "archivo") + "' de la carpeta '" + (tipoDocumento != null ? tipoDocumento : "Sin categoría") + "'",
+                            usuario
+                    );
+                }
+            } catch (Exception exHist) {
+                log.warn("No se pudo registrar historial para eliminación de soporte: {}", exHist.getMessage());
+            }
+
             log.info("Soporte eliminado [id={}, usuario={}]", id, usuario != null ? usuario.getUsername() : "desconocido");
             return ResponseEntity.ok(Map.of("status", "OK", "message", "Documento eliminado correctamente"));
         } catch (Exception e) {
             log.error("Error al eliminar soporte [id={}]: {}", id, e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+
+    /** Rechaza un soporte registrando motivo */
+    @PutMapping("/{id}/rechazar")
+    public ResponseEntity<?> rechazarSoporte(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body,
+            @AuthenticationPrincipal Usuario usuario) {
+        try {
+            if (usuario != null && usuario.getRol() != Role.ADMIN && usuario.getRol() != Role.HR_MANAGER) {
+                return ResponseEntity.status(403).body(Map.of("status", "ERROR", "message", "No tiene permisos para rechazar soportes."));
+            }
+
+            Soporte soporte = soporteRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Soporte no encontrado con ID: " + id));
+
+            soporte.setEstado("Rechazado");
+            Soporte guardado = soporteRepository.save(soporte);
+
+            String motivo = body != null ? body.getOrDefault("motivo", "") : "";
+            try {
+                if (soporte.getHojaVida() != null) {
+                    hojaVidaHistorialService.registrarHistorial(
+                            soporte.getHojaVida().getId(),
+                            "RECHAZO_SOPORTE",
+                            "Se rechazó el soporte '" + soporte.getNombreArchivo() + "' de la carpeta '" + (soporte.getTipoDocumento() != null ? soporte.getTipoDocumento() : "Sin categoría") + "'" + (motivo.isEmpty() ? "" : ". Motivo: " + motivo),
+                            usuario
+                    );
+                }
+            } catch (Exception exHist) {
+                log.warn("No se pudo registrar historial de rechazo: {}", exHist.getMessage());
+            }
+
+            return ResponseEntity.ok(Map.of("status", "OK", "message", "Soporte rechazado correctamente", "data", guardado));
+        } catch (Exception e) {
+            log.error("Error al rechazar soporte [id={}]: {}", id, e.getMessage());
             return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", e.getMessage()));
         }
     }

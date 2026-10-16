@@ -45,10 +45,10 @@ public class CargoController {
     private CargoDTO toDTO(Cargo c) {
         CargoDTO dto = new CargoDTO();
         dto.setId(c.getId());
-        dto.setNombre(c.getNombre());
+        dto.setNombre(c.getNombre() != null ? c.getNombre().toUpperCase() : null);
         if (c.getReportaA() != null) {
             dto.setReportaAId(c.getReportaA().getId());
-            dto.setReportaANombre(c.getReportaA().getNombre());
+            dto.setReportaANombre(c.getReportaA().getNombre() != null ? c.getReportaA().getNombre().toUpperCase() : null);
         }
         if (c.getPermisos() != null) {
             dto.setPermisos(c.getPermisos().stream().map(p -> {
@@ -79,11 +79,12 @@ public class CargoController {
             if (nombre == null || nombre.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body("El nombre del cargo es obligatorio");
             }
-            if (cargoRepository.findByNombre(nombre.trim()).isPresent()) {
+            String nombreUpper = nombre.trim().toUpperCase();
+            if (cargoRepository.findByNombre(nombreUpper).isPresent()) {
                 return ResponseEntity.badRequest().body("Ya existe un cargo con ese nombre");
             }
             Cargo nuevo = new Cargo();
-            nuevo.setNombre(nombre.trim());
+            nuevo.setNombre(nombreUpper);
             nuevo.setPermisos(new HashSet<>());
             Cargo guardado = cargoRepository.save(nuevo);
             return ResponseEntity.ok(toDTO(guardado));
@@ -102,7 +103,7 @@ public class CargoController {
             if (nuevoNombre == null || nuevoNombre.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body("El nombre del cargo es obligatorio");
             }
-            cargo.setNombre(nuevoNombre.trim());
+            cargo.setNombre(nuevoNombre.trim().toUpperCase());
             return ResponseEntity.ok(toDTO(cargoRepository.save(cargo)));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error al actualizar cargo: " + e.getMessage());

@@ -139,12 +139,30 @@ public class HojaVidaService {
         String contratoAnterior = hojaVida.getTipoContrato();
         String contratoNuevo = request.tipoContrato();
 
-        if (contratoNuevo != null && !contratoNuevo.equalsIgnoreCase(contratoAnterior)) {
-            String currentUser = request.usuarioUltimaEdicion() != null ? request.usuarioUltimaEdicion() : "Sistema";
+        boolean vacunasCambiaron = (request.detalleVacunas() != null && !request.detalleVacunas().equals(hojaVida.getDetalleVacunas()))
+                || (request.perfilVacunacion() != null && !request.perfilVacunacion().equalsIgnoreCase(hojaVida.getPerfilVacunacion() != null ? hojaVida.getPerfilVacunacion() : ""));
+        boolean contratoCambio = contratoNuevo != null && !contratoNuevo.equalsIgnoreCase(contratoAnterior != null ? contratoAnterior : "");
+        String currentUser = request.usuarioUltimaEdicion() != null ? request.usuarioUltimaEdicion() : "Sistema";
+
+        if (contratoCambio) {
             historialService.registrarHistorial(
                     id, 
                     "CAMBIO_CONTRATO", 
                     "Cambio de Tipo de Contrato de [" + (contratoAnterior != null ? contratoAnterior : "N/A") + "] a [" + contratoNuevo + "]", 
+                    currentUser
+            );
+        } else if (vacunasCambiaron) {
+            historialService.registrarHistorial(
+                    id,
+                    "ACTUALIZACION_VACUNA",
+                    "Se actualizó el esquema/registro de vacunas (" + (request.perfilVacunacion() != null ? request.perfilVacunacion() : "General") + ")",
+                    currentUser
+            );
+        } else {
+            historialService.registrarHistorial(
+                    id,
+                    "ACTUALIZACION_DATOS",
+                    "Se actualizaron los datos del colaborador",
                     currentUser
             );
         }
@@ -205,6 +223,16 @@ public class HojaVidaService {
             hojaVida.setFotoUrl("/api/v1/uploads/fotos/" + nombreArchivo);
             hojaVida.setFechaUltimaEdicion(LocalDateTime.now());
             HojaVida hojaVidaActualizada = hojaVidaRepository.save(hojaVida);
+
+            try {
+                String usuarioEdicion = hojaVidaActualizada.getUsuarioUltimaEdicion() != null ? hojaVidaActualizada.getUsuarioUltimaEdicion() : "Sistema";
+                historialService.registrarHistorial(
+                        id,
+                        "CARGA_FOTO",
+                        "Se actualizó la foto de perfil (" + originalName + ")",
+                        usuarioEdicion
+                );
+            } catch (Exception ignored) {}
 
             return mapearAResponseDTO(hojaVidaActualizada);
 

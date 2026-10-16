@@ -38,4 +38,16 @@ public class Cargo {
     )
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Set<Permiso> permisos = new HashSet<>();
+
+    @PrePersist
+    @PreUpdate
+    public void ensureUppercase() {
+        if (this.nombre != null) {
+            this.nombre = this.nombre.trim().toUpperCase();
+        }
+    }
+
+    public String getNombre() {
+        return nombre != null ? nombre.toUpperCase() : null;
+    }
 }
