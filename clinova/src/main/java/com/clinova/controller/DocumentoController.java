@@ -100,16 +100,27 @@ public class DocumentoController {
         return ResponseEntity.ok(Map.of("codigo", generarCodigo(proceso, tipo)));
     }
 
+    public Documento findDocumentoByIdOrKawakId(Long id) {
+        if (id == null) return null;
+        return repository.findById(id)
+                .or(() -> repository.findByKawakId(id))
+                .orElse(null);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<StructureResponses<Documento>> obtenerPorId(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElseThrow();
+            Documento doc = findDocumentoByIdOrKawakId(id);
+            if (doc == null) {
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "Documento no encontrado con ID o Kawak ID: " + id, null));
+            }
             if (usuario != null && !permissionEvaluator.isAdmin(usuario) && !permissionEvaluator.canView(doc.getVisualizacion(), usuario)) {
                 return ResponseEntity.status(403).body(new StructureResponses<>("FORBIDDEN", "No tiene permisos para visualizar este documento", null));
             }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "OK", doc));
         } catch (Exception e) {
-            return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "No encontrado", null));
+            log.error("Error al obtener documento ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
         }
     }
 
@@ -495,7 +506,10 @@ public class DocumentoController {
             @RequestParam(value = "archivoPdf", required = false) MultipartFile archivoPdf,
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+            Documento doc = findDocumentoByIdOrKawakId(id);
+            if (doc == null) {
+                throw new RuntimeException("Documento no encontrado con ID o Kawak ID: " + id);
+            }
             Long fileId = doc.getKawakId() != null ? doc.getKawakId() : doc.getId();
 
             if (archivo != null && !archivo.isEmpty()) {
@@ -607,7 +621,10 @@ public class DocumentoController {
             @RequestParam(value = "fechaAprobacion", required = false) String fechaAprobacion,
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+            Documento doc = findDocumentoByIdOrKawakId(id);
+            if (doc == null) {
+                throw new RuntimeException("Documento no encontrado con ID o Kawak ID: " + id);
+            }
 
             String oldVersion = doc.getVersion();
             String prevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank()) 
@@ -722,11 +739,14 @@ public class DocumentoController {
     @PutMapping("/{id}/aprobar")
     public ResponseEntity<StructureResponses<Documento>> aprobar(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElseThrow();
+            Documento doc = findDocumentoByIdOrKawakId(id);
+            if (doc == null) {
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "Documento no encontrado", null));
+            }
             doc.setEstado("VIGENTE");
             doc.setFechaAprobacion(java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
             Documento guardado = repository.save(doc);
-            historialService.registrarHistorial(id, "APROBACION", "Documento aprobado y publicado como VIGENTE", usuario);
+            historialService.registrarHistorial(doc.getId(), "APROBACION", "Documento aprobado y publicado como VIGENTE", usuario);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Aprobado", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
@@ -739,10 +759,13 @@ public class DocumentoController {
             @RequestParam(value = "motivo", required = false, defaultValue = "Documento marcado como obsoleto por el administrador") String motivo,
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElseThrow();
+            Documento doc = findDocumentoByIdOrKawakId(id);
+            if (doc == null) {
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "Documento no encontrado", null));
+            }
             doc.setEstado("OBSOLETO");
             Documento guardado = repository.save(doc);
-            historialService.registrarHistorial(id, "OBSOLETO", "Documento pasado a OBSOLETO: " + motivo, usuario);
+            historialService.registrarHistorial(doc.getId(), "OBSOLETO", "Documento pasado a OBSOLETO: " + motivo, usuario);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento marcado como OBSOLETO", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
@@ -754,7 +777,10 @@ public class DocumentoController {
             @PathVariable Long id, 
             @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElseThrow();
+            Documento doc = findDocumentoByIdOrKawakId(id);
+            if (doc == null) {
+                return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "Documento no encontrado", null));
+            }
             doc.setEstado("VIGENTE");
             Documento guardado = repository.save(doc);
             historialService.registrarHistorial(id, "RESTAURACION", "Documento restaurado a VIGENTE desde OBSOLETO", usuario);
