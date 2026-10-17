@@ -87,7 +87,7 @@ public class Documento {
     @Column(name = "requiere_aprobacion", length = 20)
     private String requiereAprobacion;
 
-    @Column(name = "permiso_visualizacion_registros", length = 200)
+    @Column(name = "permiso_visualizacion_registros", length = 100)
     private String permisoVisualizacionRegistros;
 
     @Column(name = "edicion_aprobadores", length = 20)
@@ -108,28 +108,28 @@ public class Documento {
     @Column(name = "evaluar_gestion", length = 20)
     private String evaluarGestion;
 
-    @Column(name = "retencion_donde", length = 500)
+    @Column(name = "retencion_donde", columnDefinition = "TEXT")
     private String retencionDonde;
 
-    @Column(name = "retencion_como", length = 500)
+    @Column(name = "retencion_como", columnDefinition = "TEXT")
     private String retencionComo;
 
-    @Column(name = "retencion_recuperacion", length = 500)
+    @Column(name = "retencion_recuperacion", columnDefinition = "TEXT")
     private String retencionRecuperacion;
 
     @Column(name = "retencion_tiempo", length = 100)
     private String retencionTiempo;
 
-    @Column(name = "disposicion_final", length = 500)
+    @Column(name = "disposicion_final", columnDefinition = "TEXT")
     private String disposicionFinal;
 
-    @Column(name = "quien_diligencia", length = 1000)
+    @Column(name = "quien_diligencia", columnDefinition = "TEXT")
     private String quienDiligencia;
 
-    @Column(name = "quien_protege", length = 1000)
+    @Column(name = "quien_protege", columnDefinition = "TEXT")
     private String quienProtege;
 
-    @Column(name = "quien_disposicion", length = 1000)
+    @Column(name = "quien_disposicion", columnDefinition = "TEXT")
     private String quienDisposicion;
 
     @Column(name = "logo", length = 255)
