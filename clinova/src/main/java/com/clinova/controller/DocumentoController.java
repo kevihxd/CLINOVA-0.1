@@ -279,7 +279,9 @@ public class DocumentoController {
                 documento.setControlCambios(documento.getDescripcion());
             }
 
-            documento.setEstado("EN REVISIÓN");
+            if (documento.getEstado() == null || documento.getEstado().isBlank()) {
+                documento.setEstado("ELABORACIÓN");
+            }
             Documento guardado = repository.save(documento);
 
             // Guardar archivos usando el ID como nombre físico (esquema Kawak)
@@ -553,6 +555,25 @@ public class DocumentoController {
             if (cambios.getImpresion() != null) doc.setImpresion(cambios.getImpresion());
             if (cambios.getDescargaOriginal() != null) doc.setDescargaOriginal(cambios.getDescargaOriginal());
             if (cambios.getDescargaPdf() != null) doc.setDescargaPdf(cambios.getDescargaPdf());
+            if (cambios.getRequiereAprobacion() != null) doc.setRequiereAprobacion(cambios.getRequiereAprobacion());
+            if (cambios.getPermisoVisualizacionRegistros() != null) doc.setPermisoVisualizacionRegistros(cambios.getPermisoVisualizacionRegistros());
+            if (cambios.getEdicionAprobadores() != null) doc.setEdicionAprobadores(cambios.getEdicionAprobadores());
+            if (cambios.getEdicionOtros() != null) doc.setEdicionOtros(cambios.getEdicionOtros());
+            if (cambios.getEdicionSolicitante() != null) doc.setEdicionSolicitante(cambios.getEdicionSolicitante());
+            if (cambios.getReiniciarCicloAprobacion() != null) doc.setReiniciarCicloAprobacion(cambios.getReiniciarCicloAprobacion());
+            if (cambios.getRequiereSeguimiento() != null) doc.setRequiereSeguimiento(cambios.getRequiereSeguimiento());
+            if (cambios.getEvaluarGestion() != null) doc.setEvaluarGestion(cambios.getEvaluarGestion());
+            if (cambios.getRetencionDonde() != null) doc.setRetencionDonde(cambios.getRetencionDonde());
+            if (cambios.getRetencionComo() != null) doc.setRetencionComo(cambios.getRetencionComo());
+            if (cambios.getRetencionRecuperacion() != null) doc.setRetencionRecuperacion(cambios.getRetencionRecuperacion());
+            if (cambios.getRetencionTiempo() != null) doc.setRetencionTiempo(cambios.getRetencionTiempo());
+            if (cambios.getDisposicionFinal() != null) doc.setDisposicionFinal(cambios.getDisposicionFinal());
+            if (cambios.getQuienDiligencia() != null) doc.setQuienDiligencia(cambios.getQuienDiligencia());
+            if (cambios.getQuienProtege() != null) doc.setQuienProtege(cambios.getQuienProtege());
+            if (cambios.getQuienDisposicion() != null) doc.setQuienDisposicion(cambios.getQuienDisposicion());
+            if (cambios.getLogo() != null) doc.setLogo(cambios.getLogo());
+            if (cambios.getContenidoHtml() != null) doc.setContenidoHtml(cambios.getContenidoHtml());
+            if (cambios.getObservaciones() != null) doc.setObservaciones(cambios.getObservaciones());
 
             Documento guardado = repository.save(doc);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Contenido del documento actualizado sin alterar la trazabilidad", guardado));
