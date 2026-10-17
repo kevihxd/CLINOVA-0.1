@@ -54,58 +54,58 @@ public class Documento {
     @Column(name = "fecha_aprobacion")
     private String fechaAprobacion;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String aprueba;
 
-    @Column(name = "descarga_original", length = 1000)
+    @Column(name = "descarga_original", columnDefinition = "TEXT")
     private String descargaOriginal;
 
-    @Column(name = "descarga_pdf", length = 1000)
+    @Column(name = "descarga_pdf", columnDefinition = "TEXT")
     private String descargaPdf;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String elabora;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String impresion;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String normas;
 
-    @Column(name = "otros_procesos", length = 1000)
+    @Column(name = "otros_procesos", columnDefinition = "TEXT")
     private String otrosProcesos;
 
     private String plantilla;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String revisa;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String visualizacion;
 
     // --- Campos de Retención Documental (TRD) y Configuración Kawak ---
-    @Column(name = "requiere_aprobacion", length = 20)
+    @Column(name = "requiere_aprobacion", columnDefinition = "TEXT")
     private String requiereAprobacion;
 
-    @Column(name = "permiso_visualizacion_registros", length = 100)
+    @Column(name = "permiso_visualizacion_registros", columnDefinition = "TEXT")
     private String permisoVisualizacionRegistros;
 
-    @Column(name = "edicion_aprobadores", length = 20)
+    @Column(name = "edicion_aprobadores", columnDefinition = "TEXT")
     private String edicionAprobadores;
 
-    @Column(name = "edicion_otros", length = 20)
+    @Column(name = "edicion_otros", columnDefinition = "TEXT")
     private String edicionOtros;
 
-    @Column(name = "edicion_solicitante", length = 20)
+    @Column(name = "edicion_solicitante", columnDefinition = "TEXT")
     private String edicionSolicitante;
 
-    @Column(name = "reiniciar_ciclo_aprobacion", length = 20)
+    @Column(name = "reiniciar_ciclo_aprobacion", columnDefinition = "TEXT")
     private String reiniciarCicloAprobacion;
 
-    @Column(name = "requiere_seguimiento", length = 20)
+    @Column(name = "requiere_seguimiento", columnDefinition = "TEXT")
     private String requiereSeguimiento;
 
-    @Column(name = "evaluar_gestion", length = 20)
+    @Column(name = "evaluar_gestion", columnDefinition = "TEXT")
     private String evaluarGestion;
 
     @Column(name = "retencion_donde", columnDefinition = "TEXT")
@@ -117,7 +117,7 @@ public class Documento {
     @Column(name = "retencion_recuperacion", columnDefinition = "TEXT")
     private String retencionRecuperacion;
 
-    @Column(name = "retencion_tiempo", length = 100)
+    @Column(name = "retencion_tiempo", columnDefinition = "TEXT")
     private String retencionTiempo;
 
     @Column(name = "disposicion_final", columnDefinition = "TEXT")
@@ -132,7 +132,7 @@ public class Documento {
     @Column(name = "quien_disposicion", columnDefinition = "TEXT")
     private String quienDisposicion;
 
-    @Column(name = "logo", length = 255)
+    @Column(name = "logo", columnDefinition = "TEXT")
     private String logo;
 
     @Column(name = "contenido_html", columnDefinition = "LONGTEXT")
