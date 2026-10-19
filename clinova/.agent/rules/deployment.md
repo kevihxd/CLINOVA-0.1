@@ -32,3 +32,14 @@ trigger: always_on
   ```
 - **Nunca** ejecutar comandos SQL directamente en el shell bash del VPS (siempre dentro del contenedor Docker).
 
+## 4. Tipos de Datos y Límite de Fila en MySQL (InnoDB 65.535 Bytes)
+- Para evitar el error `1118 (Row size too large)` en la tabla `documentos`, cualquier columna de listas largas (distribución, usuarios, firmas, TRD, observaciones) DEBE definirse con `columnDefinition = "TEXT"` en JPA y `TEXT NULL` en MySQL.
+- Los tipos `VARCHAR(500)` o `VARCHAR(1000)` en charset `utf8mb4` consumen hasta 4 bytes por caracter en el registro inline y están prohibidos para campos multilínea o acumulativos.
+
+## 5. Búsqueda Dual de Documentos (ID vs Kawak ID)
+- Todo endpoint o servicio que busque un documento individual (`obtenerPorId`, `actualizar`, `nuevaVersion`, `aprobar`, `obsoleto`, `restaurar`) debe buscar tanto por `id` como por `kawakId` (`repository.findById(id).or(() -> repository.findByKawakId(id))`).
+
+## 6. Reglas de Talento Humano y Formatos
+- Los usuarios con tipo de vinculación `CONTRATISTA` tienen bloqueada la opción de eliminar soportes de su hoja de vida. Toda eliminación administrativa debe quedar auditada en el log de historial.
+- Los cargos institucionales siempre se deben estandarizar y registrar en MAYÚSCULAS (`UPPERCASE`).
+- En la creación de formatos o registros, la opción `Archivo (Office, PDF)` y `Edición en línea` son interfaces mutuamente excluyentes en la pantalla 2 del asistente.
