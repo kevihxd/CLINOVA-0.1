@@ -68,11 +68,75 @@ public class DocumentoHistorialService {
         }
     }
 
+    public String limpiarSaltosLiteral(String texto) {
+        if (texto == null) return "";
+        return texto.replaceAll("(?:\\\\r\\\\n|\\\\n\\\\r|\\\\r|\\\\n)+", "\n").trim();
+    }
+
+    public LocalDateTime parsearFechaDocumento(Documento d) {
+        if (d == null) return LocalDateTime.now();
+        String raw = d.getFechaAprobacion();
+        if (raw == null || raw.isBlank() || "—".equals(raw.trim()) || "--".equals(raw.trim())) {
+            raw = d.getFechaRevision();
+        }
+        if (raw == null || raw.isBlank() || "—".equals(raw.trim()) || "--".equals(raw.trim())) {
+            raw = d.getFechaElaboracion();
+        }
+        if (raw != null && !raw.isBlank()) {
+            try {
+                String cleanFecha = raw.trim();
+                int spaceIdx = cleanFecha.indexOf(' ');
+                if (spaceIdx > 0) cleanFecha = cleanFecha.substring(0, spaceIdx);
+                int tIdx = cleanFecha.indexOf('T');
+                if (tIdx > 0) cleanFecha = cleanFecha.substring(0, tIdx);
+                String[] parts = cleanFecha.split("[/-]");
+                if (parts.length == 3) {
+                    int day, month, year;
+                    if (parts[0].length() == 4) {
+                        year = Integer.parseInt(parts[0]);
+                        month = Integer.parseInt(parts[1]);
+                        day = Integer.parseInt(parts[2]);
+                    } else {
+                        day = Integer.parseInt(parts[0]);
+                        month = Integer.parseInt(parts[1]);
+                        year = Integer.parseInt(parts[2]);
+                    }
+                    if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1990 && year <= 2100) {
+                        return LocalDateTime.of(year, month, day, 12, 0);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return LocalDateTime.now();
+    }
+
+    @Transactional
+    public void actualizarComentarioVersion(Long documentoId, String version, String nuevoComentario) {
+        if (documentoId == null || nuevoComentario == null || nuevoComentario.isBlank()) return;
+        try {
+            String comentarioLimpio = limpiarSaltosLiteral(nuevoComentario);
+            List<DocumentoHistorial> logs = repository.findByDocumentoIdOrderByFechaDesc(documentoId);
+            for (DocumentoHistorial h : logs) {
+                String acc = h.getAccion() != null ? h.getAccion().toUpperCase() : "";
+                if ("CREACION_VERSION".equals(acc) || "CREACION".equals(acc) || "VERSION_ANTERIOR_OBSOLETA".equals(acc)) {
+                    if (version == null || h.getVersion() == null || version.trim().equalsIgnoreCase(h.getVersion().trim())) {
+                        h.setDescripcion(comentarioLimpio);
+                        repository.save(h);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error actualizando comentario en historial para docId {}: {}", documentoId, e.getMessage());
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<DocumentoHistorialDTO> obtenerHistorialPorDocumento(Long documentoId) {
         List<DocumentoHistorialDTO> dtos = new ArrayList<>();
         try {
-            Documento doc = documentoRepository.findById(documentoId).orElse(null);
+            Documento doc = documentoRepository.findById(documentoId)
+                    .or(() -> documentoRepository.findByKawakId(documentoId))
+                    .orElse(null);
             if (doc == null) return dtos;
 
             List<Documento> relacionados = documentoRepository.findAllRelacionados(
@@ -88,7 +152,7 @@ public class DocumentoHistorialService {
 
             for (DocumentoHistorial logEntry : existingLogs) {
                 String accion = (logEntry.getAccion() != null) ? logEntry.getAccion().toUpperCase() : "";
-                String desc = (logEntry.getDescripcion() != null) ? logEntry.getDescripcion() : "";
+                String desc = limpiarSaltosLiteral(logEntry.getDescripcion() != null ? logEntry.getDescripcion() : "");
                 String user = (logEntry.getUsuario() != null && !logEntry.getUsuario().isBlank()) ? logEntry.getUsuario() : "Usuario del Sistema";
 
                 boolean isSystemScheduler = "CAMBIO_ESTADO".equalsIgnoreCase(accion)
@@ -99,25 +163,47 @@ public class DocumentoHistorialService {
                         || desc.toLowerCase().contains("días faltantes");
 
                 String ver = logEntry.getVersion();
+                Documento docAsociado = null;
+                for (Documento d : relacionados) {
+                    if (d.getId().equals(logEntry.getDocumentoId())) {
+                        docAsociado = d;
+                        break;
+                    }
+                }
                 if (!isSystemScheduler && (ver == null || ver.isBlank() || ver.equals("0"))) {
+                    if (docAsociado != null && docAsociado.getVersion() != null) {
+                        ver = docAsociado.getVersion();
+                    }
+                }
+                if (!isSystemScheduler && (ver == null || ver.isBlank())) {
+                    ver = doc.getVersion() != null ? doc.getVersion() : "1";
+                }
+                if (docAsociado == null && ver != null) {
                     for (Documento d : relacionados) {
-                        if (d.getId().equals(logEntry.getDocumentoId()) && d.getVersion() != null) {
-                            ver = d.getVersion();
+                        if (d.getVersion() != null && d.getVersion().trim().equalsIgnoreCase(ver.trim())) {
+                            docAsociado = d;
                             break;
                         }
                     }
                 }
-                if (!isSystemScheduler && (ver == null || ver.isBlank())) {
-                    ver = doc != null && doc.getVersion() != null ? doc.getVersion() : "1";
+
+                // Para eventos de versión (CREACION_VERSION, VERSION_ANTERIOR_OBSOLETA), usar la fecha oficial de aprobación
+                // del documento de esa versión en lugar del timestamp del servidor cuando se archivó/subió.
+                LocalDateTime fechaEvento = logEntry.getFecha() != null ? logEntry.getFecha() : LocalDateTime.now();
+                if (docAsociado != null && ("VERSION_ANTERIOR_OBSOLETA".equals(accion) || "CREACION_VERSION".equals(accion) || "CREACION".equals(accion))) {
+                    if (docAsociado.getFechaAprobacion() != null && !docAsociado.getFechaAprobacion().isBlank()) {
+                        fechaEvento = parsearFechaDocumento(docAsociado);
+                    }
                 }
+
                 dtos.add(new DocumentoHistorialDTO(
                         logEntry.getId(),
                         logEntry.getDocumentoId(),
                         ver,
                         logEntry.getAccion(),
-                        logEntry.getDescripcion(),
+                        desc,
                         user,
-                        logEntry.getFecha() != null ? logEntry.getFecha() : LocalDateTime.now()
+                        fechaEvento
                 ));
             }
 
@@ -138,31 +224,9 @@ public class DocumentoHistorialService {
                     String desc = (d.getControlCambios() != null && !d.getControlCambios().isBlank()) ? d.getControlCambios()
                             : (dDesc != null && !dDesc.isBlank() && !dDesc.equals("Versión actual del documento") && !(vInt > 1 && isGenericDesc)) 
                             ? dDesc : (vInt == 1 ? "Creación y publicación inicial del documento" : ("Actualización del documento, versión " + verStr));
+                    desc = limpiarSaltosLiteral(desc);
                     String user = (d.getElabora() != null && !d.getElabora().isBlank()) ? d.getElabora() : "Usuario del Sistema";
-                    LocalDateTime fecha = LocalDateTime.now();
-                    if (d.getFechaAprobacion() != null && !d.getFechaAprobacion().isBlank()) {
-                        try {
-                            String cleanFecha = d.getFechaAprobacion().trim();
-                            int spaceIdx = cleanFecha.indexOf(' ');
-                            if (spaceIdx > 0) cleanFecha = cleanFecha.substring(0, spaceIdx);
-                            String[] parts = cleanFecha.split("[/-]");
-                            if (parts.length == 3) {
-                                int day, month, year;
-                                if (parts[0].length() == 4) {
-                                    year = Integer.parseInt(parts[0]);
-                                    month = Integer.parseInt(parts[1]);
-                                    day = Integer.parseInt(parts[2]);
-                                } else {
-                                    day = Integer.parseInt(parts[0]);
-                                    month = Integer.parseInt(parts[1]);
-                                    year = Integer.parseInt(parts[2]);
-                                }
-                                if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-                                    fecha = LocalDateTime.of(year, month, day, 12, 0);
-                                }
-                            }
-                        } catch (Exception ignored) {}
-                    }
+                    LocalDateTime fecha = parsearFechaDocumento(d);
                     dtos.add(new DocumentoHistorialDTO(
                             d.getId(),
                             d.getId(),

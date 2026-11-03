@@ -211,6 +211,28 @@ public class DocumentoController {
         }
     }
 
+    @GetMapping("/proximo-id")
+    public ResponseEntity<Map<String, Object>> obtenerProximoId() {
+        long nextId = 3468L;
+        try {
+            Object maxRow = entityManager.createNativeQuery(
+                    "SELECT COALESCE(MAX(GREATEST(COALESCE(id, 0), COALESCE(kawak_id, 0))), 0) + 1 FROM documentos"
+            ).getSingleResult();
+            if (maxRow instanceof Number n) {
+                nextId = Math.max(nextId, n.longValue());
+            }
+        } catch (Exception ignored) {}
+        try {
+            Object autoInc = entityManager.createNativeQuery(
+                    "SELECT COALESCE(AUTO_INCREMENT, 0) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'documentos'"
+            ).getSingleResult();
+            if (autoInc instanceof Number n) {
+                nextId = Math.max(nextId, n.longValue());
+            }
+        } catch (Exception ignored) {}
+        return ResponseEntity.ok(Map.of("proximoId", nextId));
+    }
+
     @GetMapping("/debug-files")
     public ResponseEntity<?> debugFiles(@RequestParam(value = "q", required = false) String query) {
         Map<String, Object> debugInfo = new LinkedHashMap<>();
@@ -398,7 +420,7 @@ public class DocumentoController {
                         .descripcion(prevDesc)
                         .build();
                 Documento obsoletoGuardado = repository.save(obsoletoDoc);
-                historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", prevDesc, usuario, oldVersion);
+                historialService.registrarHistorial(obsoletoGuardado.getId(), "CREACION_VERSION", historialService.limpiarSaltosLiteral(prevDesc), usuario, oldVersion, historialService.parsearFechaDocumento(obsoletoGuardado));
                 
                 String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
                 doc.setFechaRevision(fechaHoy);
@@ -447,17 +469,20 @@ public class DocumentoController {
             if (cambios.getLogo() != null) doc.setLogo(cambios.getLogo());
             if (cambios.getEstado() != null && !cambios.getEstado().isBlank()) doc.setEstado(cambios.getEstado().trim());
             if (cambios.getControlCambios() != null && !cambios.getControlCambios().isBlank()) {
-                doc.setControlCambios(cambios.getControlCambios());
-                doc.setDescripcion(cambios.getControlCambios());
+                String cleanComm = historialService.limpiarSaltosLiteral(cambios.getControlCambios());
+                doc.setControlCambios(cleanComm);
+                doc.setDescripcion(cleanComm);
             }
 
             Documento guardado = repository.save(doc);
 
             if (isNewVersion) {
                 String versionComment = (guardado.getControlCambios() != null && !guardado.getControlCambios().isBlank()) 
-                        ? guardado.getControlCambios() 
+                        ? historialService.limpiarSaltosLiteral(guardado.getControlCambios()) 
                         : ("Nueva versión " + cambios.getVersion() + " creada e implementada");
-                historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", versionComment, usuario, cambios.getVersion());
+                historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", versionComment, usuario, cambios.getVersion(), historialService.parsearFechaDocumento(guardado));
+            } else if (cambios.getControlCambios() != null && !cambios.getControlCambios().isBlank()) {
+                historialService.actualizarComentarioVersion(guardado.getId(), guardado.getVersion(), guardado.getControlCambios());
             }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento actualizado", guardado));
         } catch (Exception e) {
@@ -556,12 +581,17 @@ public class DocumentoController {
             if (cambios.getFechaElaboracion() != null && !cambios.getFechaElaboracion().isBlank()) doc.setFechaElaboracion(cambios.getFechaElaboracion().trim());
             if (cambios.getFechaRevision() != null && !cambios.getFechaRevision().isBlank()) doc.setFechaRevision(cambios.getFechaRevision().trim());
             if (cambios.getFechaAprobacion() != null && !cambios.getFechaAprobacion().isBlank()) doc.setFechaAprobacion(cambios.getFechaAprobacion().trim());
+            boolean commentUpdated = false;
             if (cambios.getControlCambios() != null && !cambios.getControlCambios().isBlank()) {
-                doc.setControlCambios(cambios.getControlCambios().trim());
-                doc.setDescripcion(cambios.getControlCambios().trim());
+                String cleanComm = historialService.limpiarSaltosLiteral(cambios.getControlCambios());
+                doc.setControlCambios(cleanComm);
+                doc.setDescripcion(cleanComm);
+                commentUpdated = true;
             } else if (cambios.getDescripcion() != null && !cambios.getDescripcion().isBlank()) {
-                doc.setDescripcion(cambios.getDescripcion().trim());
-                doc.setControlCambios(cambios.getDescripcion().trim());
+                String cleanComm = historialService.limpiarSaltosLiteral(cambios.getDescripcion());
+                doc.setDescripcion(cleanComm);
+                doc.setControlCambios(cleanComm);
+                commentUpdated = true;
             }
             if (cambios.getVersion() != null && !cambios.getVersion().isBlank()) doc.setVersion(cambios.getVersion().trim());
             if (cambios.getEstado() != null && !cambios.getEstado().isBlank()) doc.setEstado(cambios.getEstado().trim());
@@ -590,6 +620,9 @@ public class DocumentoController {
             if (cambios.getObservaciones() != null) doc.setObservaciones(cambios.getObservaciones());
 
             Documento guardado = repository.save(doc);
+            if (commentUpdated) {
+                historialService.actualizarComentarioVersion(guardado.getId(), guardado.getVersion(), guardado.getControlCambios());
+            }
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Contenido del documento actualizado sin alterar la trazabilidad", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
@@ -627,17 +660,17 @@ public class DocumentoController {
             }
 
             String oldVersion = doc.getVersion();
-            String prevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank()) 
+            String rawPrevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank()) 
                     ? doc.getControlCambios() 
                     : (doc.getDescripcion() != null && !doc.getDescripcion().isBlank()) ? doc.getDescripcion() : ("Versión " + oldVersion + " del documento");
+            String prevDesc = historialService.limpiarSaltosLiteral(rawPrevDesc);
+            java.time.LocalDateTime fechaVersionAnterior = historialService.parsearFechaDocumento(doc);
 
-            // 1. Archivar versión previa en OBSOLETOS (mantiene su ID histórico)
+            // 1. Archivar versión previa en OBSOLETOS (mantiene su ID histórico y su fecha original de aprobación)
             doc.setEstado("OBSOLETO");
-            if (doc.getControlCambios() == null || doc.getControlCambios().isBlank()) {
-                doc.setControlCambios(prevDesc);
-            }
+            doc.setControlCambios(prevDesc);
             repository.save(doc);
-            historialService.registrarHistorial(doc.getId(), "VERSION_ANTERIOR_OBSOLETA", prevDesc, usuario, oldVersion);
+            historialService.registrarHistorial(doc.getId(), "VERSION_ANTERIOR_OBSOLETA", prevDesc, usuario, oldVersion, fechaVersionAnterior);
 
             // 2. Incrementar número de versión para el nuevo registro vigente
             String nuevaVerStr = version;
@@ -653,7 +686,7 @@ public class DocumentoController {
             }
 
             String descLog = (controlCambios != null && !controlCambios.trim().isEmpty()) 
-                    ? controlCambios.trim() 
+                    ? historialService.limpiarSaltosLiteral(controlCambios) 
                     : "Creación e implementación de la versión " + nuevaVerStr;
             String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
@@ -728,7 +761,7 @@ public class DocumentoController {
             }
 
             guardado = repository.save(guardado);
-            historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", descLog, usuario, nuevaVerStr);
+            historialService.registrarHistorial(guardado.getId(), "CREACION_VERSION", descLog, usuario, nuevaVerStr, historialService.parsearFechaDocumento(guardado));
 
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Nueva versión creada exitosamente", guardado));
         } catch (Exception e) {
