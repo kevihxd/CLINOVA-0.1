@@ -73,6 +73,35 @@ public class DocumentoHistorialService {
         return texto.replaceAll("(?:\\\\r\\\\n|\\\\n\\\\r|\\\\r|\\\\n)+", "\n").trim();
     }
 
+    /**
+     * Identifica registros automáticos del sistema en Kawak ("modificó los adjuntos...")
+     * que no corresponden a comentarios humanos de Control de Cambios (rxv_tipo IS NULL).
+     */
+    public boolean esRuidoAdjuntosKawak(String texto) {
+        if (texto == null) return false;
+        String lower = texto.trim().toLowerCase();
+        return lower.startsWith("el usuario ") && (lower.contains("modificó los adjuntos") || lower.contains("modifico los adjuntos"));
+    }
+
+    /**
+     * Identifica textos genéricos o vacíos de Versión 1 que, según la regla de Kawak,
+     * no deben generar filas sintéticas en el Control de Cambios.
+     */
+    public boolean esTextoGenericoV1(String texto) {
+        if (texto == null || texto.isBlank()) return true;
+        String t = texto.trim().toLowerCase();
+        return esRuidoAdjuntosKawak(texto)
+                || t.equals(".") || t.equals("-") || t.equals("--") || t.equals("—")
+                || t.startsWith("creación e implementación inicial")
+                || t.startsWith("creacion e implementacion inicial")
+                || t.startsWith("creación y publicación inicial")
+                || t.startsWith("creación del documento en el sistema")
+                || t.startsWith("creacion del documento en el sistema")
+                || t.equals("versión 1 del documento")
+                || t.equals("version 1 del documento")
+                || t.equals("versión actual del documento");
+    }
+
     public LocalDateTime parsearFechaDocumento(Documento d) {
         if (d == null) return LocalDateTime.now();
         String raw = d.getFechaAprobacion();
@@ -218,13 +247,20 @@ public class DocumentoHistorialService {
                     int vInt = 1;
                     try { vInt = Integer.parseInt(verStr.replaceAll("[^0-9]", "")); } catch (Exception ignored) {}
 
+                    String dCC = d.getControlCambios();
                     String dDesc = d.getDescripcion();
-                    boolean isGenericDesc = dDesc != null && dDesc.toLowerCase().contains("creación e implementación inicial");
 
-                    String desc = (d.getControlCambios() != null && !d.getControlCambios().isBlank()) ? d.getControlCambios()
-                            : (dDesc != null && !dDesc.isBlank() && !dDesc.equals("Versión actual del documento") && !(vInt > 1 && isGenericDesc)) 
-                            ? dDesc : (vInt == 1 ? "Creación y publicación inicial del documento" : ("Actualización del documento, versión " + verStr));
-                    desc = limpiarSaltosLiteral(desc);
+                    // Regla oficial de Kawak: Versión 1 sin cambio explícito no genera fila sintética en Control de Cambios
+                    if (vInt == 1 && esTextoGenericoV1(dCC) && esTextoGenericoV1(dDesc)) {
+                        continue;
+                    }
+
+                    boolean isGenericDesc = dDesc != null && dDesc.toLowerCase().contains("creación e implementación inicial");
+                    String rawChosen = (dCC != null && !dCC.isBlank() && !esRuidoAdjuntosKawak(dCC)) ? dCC
+                            : (dDesc != null && !dDesc.isBlank() && !esRuidoAdjuntosKawak(dDesc) && !dDesc.equals("Versión actual del documento") && !(vInt > 1 && isGenericDesc))
+                            ? dDesc : ("Actualización del documento, versión " + verStr);
+
+                    String desc = limpiarSaltosLiteral(rawChosen);
                     String user = (d.getElabora() != null && !d.getElabora().isBlank()) ? d.getElabora() : "Usuario del Sistema";
                     LocalDateTime fecha = parsearFechaDocumento(d);
                     dtos.add(new DocumentoHistorialDTO(

@@ -660,17 +660,24 @@ public class DocumentoController {
             }
 
             String oldVersion = doc.getVersion();
-            String rawPrevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank()) 
-                    ? doc.getControlCambios() 
-                    : (doc.getDescripcion() != null && !doc.getDescripcion().isBlank()) ? doc.getDescripcion() : ("Versión " + oldVersion + " del documento");
+            String rawPrevDesc = (doc.getControlCambios() != null && !doc.getControlCambios().isBlank())
+                    ? doc.getControlCambios()
+                    : (doc.getDescripcion() != null && !doc.getDescripcion().isBlank()) ? doc.getDescripcion() : "";
             String prevDesc = historialService.limpiarSaltosLiteral(rawPrevDesc);
+            if (historialService.esRuidoAdjuntosKawak(prevDesc)) {
+                prevDesc = "";
+            }
             java.time.LocalDateTime fechaVersionAnterior = historialService.parsearFechaDocumento(doc);
 
             // 1. Archivar versión previa en OBSOLETOS (mantiene su ID histórico y su fecha original de aprobación)
             doc.setEstado("OBSOLETO");
-            doc.setControlCambios(prevDesc);
+            doc.setControlCambios(prevDesc.isBlank() ? null : prevDesc);
             repository.save(doc);
-            historialService.registrarHistorial(doc.getId(), "VERSION_ANTERIOR_OBSOLETA", prevDesc, usuario, oldVersion, fechaVersionAnterior);
+            String oldVerClean = oldVersion != null ? oldVersion.replaceAll("[^0-9]", "") : "1";
+            if (!"1".equals(oldVerClean) || !historialService.esTextoGenericoV1(prevDesc)) {
+                String logObsDesc = !prevDesc.isBlank() ? prevDesc : ("Versión " + oldVersion + " del documento");
+                historialService.registrarHistorial(doc.getId(), "VERSION_ANTERIOR_OBSOLETA", logObsDesc, usuario, oldVersion, fechaVersionAnterior);
+            }
 
             // 2. Incrementar número de versión para el nuevo registro vigente
             String nuevaVerStr = version;
@@ -685,9 +692,10 @@ public class DocumentoController {
                 nuevaVerStr = String.valueOf(vNum);
             }
 
-            String descLog = (controlCambios != null && !controlCambios.trim().isEmpty()) 
-                    ? historialService.limpiarSaltosLiteral(controlCambios) 
-                    : "Creación e implementación de la versión " + nuevaVerStr;
+            String rawCC = controlCambios != null ? historialService.limpiarSaltosLiteral(controlCambios) : "";
+            String descLog = (!rawCC.isBlank() && !historialService.esRuidoAdjuntosKawak(rawCC))
+                    ? rawCC
+                    : "Actualización de documento a versión " + nuevaVerStr;
             String fechaHoy = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
             // 3. Crear el nuevo registro VIGENTE (obtiene un nuevo ID autoincremental)
