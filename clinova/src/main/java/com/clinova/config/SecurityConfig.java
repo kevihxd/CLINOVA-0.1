@@ -65,8 +65,11 @@ public class SecurityConfig {
             configuration.setAllowedOriginPatterns(Arrays.asList(envOrigins.split(",")));
         } else {
             configuration.setAllowedOriginPatterns(Arrays.asList(
+                "https://clinovahouse.clinicalhouse.co",
+                "http://clinovahouse.clinicalhouse.co",
                 "https://clinova.clinicalhouse.co",
                 "http://clinova.clinicalhouse.co",
+                "https://*.clinicalhouse.co",
                 "https://apiclinovavps.clinicalhouse.co",
                 "http://localhost:*",
                 "http://127.0.0.1:*",

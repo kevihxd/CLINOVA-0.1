@@ -126,38 +126,65 @@ public class DocumentoController {
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<?> eliminarPorId(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario) {
+    public ResponseEntity<?> eliminarPorId(
+            @PathVariable Long id,
+            @RequestParam(value = "motivo", required = false, defaultValue = "Documento retirado por el usuario desde Listado Único") String motivo,
+            @RequestParam(value = "forcePurge", defaultValue = "false") boolean forcePurge,
+            @AuthenticationPrincipal Usuario usuario) {
         try {
-            Documento doc = repository.findById(id).orElse(null);
+            Documento doc = findDocumentoByIdOrKawakId(id);
             if (doc == null) {
                 return ResponseEntity.status(404)
                         .body(Map.of("success", false, "message", "Documento no encontrado con ID: " + id));
             }
 
-            // 1. Limpiar historial asociado en documentos_historial
-            try {
-                entityManager.createQuery("DELETE FROM DocumentoHistorial h WHERE h.documentoId = :id")
-                        .setParameter("id", id)
-                        .executeUpdate();
-            } catch (Exception eHist) {
-                log.warn("No se pudo limpiar el historial del documento {}: {}", id, eHist.getMessage());
+            if (forcePurge) {
+                // 1. Limpiar historial asociado en documentos_historial
+                try {
+                    entityManager.createQuery("DELETE FROM DocumentoHistorial h WHERE h.documentoId = :id")
+                            .setParameter("id", doc.getId())
+                            .executeUpdate();
+                } catch (Exception eHist) {
+                    log.warn("No se pudo limpiar el historial del documento {}: {}", id, eHist.getMessage());
+                }
+
+                // 2. Eliminar físicamente el documento
+                repository.delete(doc);
+
+                log.info("Superadmin purgó permanentemente documento: ID={}, Código={}, Nombre={}, Usuario={}",
+                        id, doc.getCodigo(), doc.getNombre(), usuario != null ? usuario.getUsername() : "ADMIN");
+
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Documento eliminado permanentemente",
+                        "id", doc.getId(),
+                        "codigo", doc.getCodigo() != null ? doc.getCodigo() : "",
+                        "nombre", doc.getNombre() != null ? doc.getNombre() : ""
+                ));
             }
 
-            // 2. Eliminar el documento
-            repository.delete(doc);
+            // Regla ISO 9001 / SGC / Kawak: El documento no se destruye, pasa a OBSOLETO con trazabilidad
+            doc.setEstado("OBSOLETO");
+            if (motivo != null && !motivo.isBlank()) {
+                doc.setDescripcion(motivo);
+            }
+            Documento guardado = repository.save(doc);
 
-            log.info("Superadmin eliminó documento: ID={}, Código={}, Nombre={}, Usuario={}",
-                    id, doc.getCodigo(), doc.getNombre(), usuario != null ? usuario.getUsername() : "ADMIN");
+            historialService.registrarHistorial(doc.getId(), "OBSOLETO", "Documento retirado / pasado a OBSOLETO: " + motivo, usuario, doc.getVersion());
+
+            log.info("Documento retirado y marcado como OBSOLETO: ID={}, Código={}, Motivo={}, Usuario={}",
+                    doc.getId(), doc.getCodigo(), motivo, usuario != null ? usuario.getUsername() : "ADMIN");
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "message", "Documento eliminado permanentemente",
-                    "id", id,
+                    "message", "Documento retirado correctamente y trasladado a Documentos Obsoletos",
+                    "id", doc.getId(),
                     "codigo", doc.getCodigo() != null ? doc.getCodigo() : "",
-                    "nombre", doc.getNombre() != null ? doc.getNombre() : ""
+                    "nombre", doc.getNombre() != null ? doc.getNombre() : "",
+                    "documento", guardado
             ));
         } catch (Exception e) {
-            log.error("Error al eliminar documento ID {}: {}", id, e.getMessage(), e);
+            log.error("Error al procesar retiro de documento ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(500)
                     .body(Map.of("success", false, "message", "Error al eliminar: " + e.getMessage()));
         }
@@ -165,7 +192,11 @@ public class DocumentoController {
 
     @PostMapping("/bulk-delete")
     @Transactional
-    public ResponseEntity<?> eliminarLotePorIds(@RequestBody List<Long> ids, @AuthenticationPrincipal Usuario usuario) {
+    public ResponseEntity<?> eliminarLotePorIds(
+            @RequestBody List<Long> ids,
+            @RequestParam(value = "motivo", required = false, defaultValue = "Retiro en lote desde Listado Único") String motivo,
+            @RequestParam(value = "forcePurge", defaultValue = "false") boolean forcePurge,
+            @AuthenticationPrincipal Usuario usuario) {
         if (ids == null || ids.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Debe proporcionar al menos un ID"));
         }
@@ -173,16 +204,25 @@ public class DocumentoController {
         List<Long> noEncontrados = new ArrayList<>();
         for (Long id : ids) {
             try {
-                Documento doc = repository.findById(id).orElse(null);
+                Documento doc = findDocumentoByIdOrKawakId(id);
                 if (doc != null) {
-                    try {
-                        entityManager.createQuery("DELETE FROM DocumentoHistorial h WHERE h.documentoId = :id")
-                                .setParameter("id", id)
-                                .executeUpdate();
-                    } catch (Exception ignored) {}
-                    repository.delete(doc);
+                    if (forcePurge) {
+                        try {
+                            entityManager.createQuery("DELETE FROM DocumentoHistorial h WHERE h.documentoId = :id")
+                                    .setParameter("id", doc.getId())
+                                    .executeUpdate();
+                        } catch (Exception ignored) {}
+                        repository.delete(doc);
+                    } else {
+                        doc.setEstado("OBSOLETO");
+                        if (motivo != null && !motivo.isBlank()) {
+                            doc.setDescripcion(motivo);
+                        }
+                        repository.save(doc);
+                        historialService.registrarHistorial(doc.getId(), "OBSOLETO", "Documento retirado en lote / pasado a OBSOLETO: " + motivo, usuario, doc.getVersion());
+                    }
                     eliminados.add(Map.of(
-                            "id", id,
+                            "id", doc.getId(),
                             "codigo", doc.getCodigo() != null ? doc.getCodigo() : "",
                             "nombre", doc.getNombre() != null ? doc.getNombre() : ""
                     ));
@@ -190,12 +230,12 @@ public class DocumentoController {
                     noEncontrados.add(id);
                 }
             } catch (Exception e) {
-                log.error("Error eliminando documento {}: {}", id, e.getMessage());
+                log.error("Error procesando retiro de documento {}: {}", id, e.getMessage());
             }
         }
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "totalEliminados", eliminados.size(),
+                "totalProcesados", eliminados.size(),
                 "eliminados", eliminados,
                 "noEncontrados", noEncontrados
         ));
@@ -805,8 +845,11 @@ public class DocumentoController {
                 return ResponseEntity.status(404).body(new StructureResponses<>("ERROR", "Documento no encontrado", null));
             }
             doc.setEstado("OBSOLETO");
+            if (motivo != null && !motivo.isBlank()) {
+                doc.setDescripcion(motivo);
+            }
             Documento guardado = repository.save(doc);
-            historialService.registrarHistorial(doc.getId(), "OBSOLETO", "Documento pasado a OBSOLETO: " + motivo, usuario);
+            historialService.registrarHistorial(doc.getId(), "OBSOLETO", "Documento pasado a OBSOLETO: " + motivo, usuario, doc.getVersion());
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento marcado como OBSOLETO", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
@@ -824,7 +867,7 @@ public class DocumentoController {
             }
             doc.setEstado("VIGENTE");
             Documento guardado = repository.save(doc);
-            historialService.registrarHistorial(id, "RESTAURACION", "Documento restaurado a VIGENTE desde OBSOLETO", usuario);
+            historialService.registrarHistorial(doc.getId(), "RESTAURACION", "Documento restaurado a VIGENTE desde OBSOLETO", usuario, doc.getVersion());
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "Documento restaurado a VIGENTE", guardado));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(new StructureResponses<>("ERROR", e.getMessage(), null));
