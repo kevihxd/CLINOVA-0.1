@@ -252,31 +252,44 @@ public class DocumentoController {
     }
 
     @GetMapping("/proximo-id")
+    @Transactional(readOnly = true)
     public ResponseEntity<Map<String, Object>> obtenerProximoId() {
-        long nextId = 3468L;
+        long nextId = 0L;
         try {
             Object maxRow = entityManager.createNativeQuery(
                     "SELECT COALESCE(MAX(GREATEST(COALESCE(id, 0), COALESCE(kawak_id, 0))), 0) + 1 FROM documentos"
             ).getSingleResult();
             if (maxRow instanceof Number n) {
                 nextId = Math.max(nextId, n.longValue());
+            } else if (maxRow != null) {
+                nextId = Math.max(nextId, Long.parseLong(maxRow.toString().trim()));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.error("Error consultando MAX(id/kawak_id) en /proximo-id: {}", e.getMessage(), e);
+        }
         try {
-            Object autoInc = entityManager.createNativeQuery(
-                    "SELECT COALESCE(AUTO_INCREMENT, 0) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'documentos'"
-            ).getSingleResult();
-            if (autoInc instanceof Number n) {
-                nextId = Math.max(nextId, n.longValue());
+            @SuppressWarnings("unchecked")
+            List<Object[]> statusRows = entityManager.createNativeQuery("SHOW TABLE STATUS LIKE 'documentos'").getResultList();
+            if (statusRows != null && !statusRows.isEmpty()) {
+                Object[] row = statusRows.get(0);
+                if (row != null && row.length > 10 && row[10] != null) {
+                    long autoVal = (row[10] instanceof Number n) ? n.longValue() : Long.parseLong(row[10].toString().trim());
+                    nextId = Math.max(nextId, autoVal);
+                }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.warn("No se pudo leer Auto_increment via SHOW TABLE STATUS: {}", e.getMessage());
+        }
+        if (nextId <= 0L) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "No se pudo calcular el próximo ID desde la base de datos"));
+        }
         return ResponseEntity.ok(Map.of("proximoId", nextId));
     }
 
     @GetMapping("/debug-files")
     public ResponseEntity<?> debugFiles(@RequestParam(value = "q", required = false) String query) {
         Map<String, Object> debugInfo = new LinkedHashMap<>();
-        debugInfo.put("jarVersion", "v9-eb82554-FileLocatorPriority");
+        debugInfo.put("jarVersion", "v10-proximoId-sync-20261125");
         debugInfo.put("fileIndexSize", fileLocator.getIndexSize());
         debugInfo.put("rootUploads", fileLocator.getRootUploads());
         if (query != null && !query.isBlank()) {
@@ -554,6 +567,18 @@ public class DocumentoController {
                         .setParameter("id", id)
                         .executeUpdate();
             } catch (Exception ignored) {}
+
+            try {
+                Object maxIdRes = entityManager.createNativeQuery(
+                        "SELECT COALESCE(MAX(GREATEST(COALESCE(id, 0), COALESCE(kawak_id, 0))), 0) + 1 FROM documentos"
+                ).getSingleResult();
+                long nextAuto = (maxIdRes instanceof Number n) ? n.longValue() : Long.parseLong(String.valueOf(maxIdRes).trim());
+                if (nextAuto > 0) {
+                    entityManager.createNativeQuery("ALTER TABLE documentos AUTO_INCREMENT = " + nextAuto).executeUpdate();
+                }
+            } catch (Exception eAuto) {
+                log.warn("No se pudo resincronizar AUTO_INCREMENT tras cambiar ID: {}", eAuto.getMessage());
+            }
 
             Documento actualizado = repository.findById(nuevoId).orElse(null);
             return ResponseEntity.ok(new StructureResponses<>("SUCCESS", "ID actualizado exitosamente a " + nuevoId, actualizado));

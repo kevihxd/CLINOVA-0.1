@@ -39,3 +39,24 @@
 - Los usuarios con tipo de vinculación `CONTRATISTA` tienen bloqueada la opción de eliminar soportes de su hoja de vida. Toda eliminación administrativa debe quedar auditada en el log de historial.
 - Los cargos institucionales siempre se deben estandarizar y registrar en MAYÚSCULAS (`UPPERCASE`).
 - En la creación de formatos o registros, la opción `Archivo (Office, PDF)` y `Edición en línea` son interfaces mutuamente excluyentes en la pantalla 2 del asistente.
+
+## 7. Rutas Locales de Repositorios y Codificación MySQL
+- **Repo Frontend activo (Git -> Hostinger):** `C:\Users\HP\Desktop\kawakips-main\kawakips-main` (la carpeta `kawakips-main (1)` NO es repositorio Git).
+- **Repo Backend activo (compilación local `.jar`):** `C:\Users\HP\Desktop\Clinova\clinova`.
+- **Verificación de esquema antes de SQL:** Antes de sugerir o generar cualquier sentencia SQL para el VPS, confirmar SIEMPRE los nombres exactos de tablas y columnas leyendo las entidades `@Entity`/`@Table` en `C:\Users\HP\Desktop\Clinova\clinova\src\main\java\com\clinova\entity\`.
+- **Tabla oficial de historial documental:** `documentos_historial` (NO `historial_documentos`). Para inserciones manuales con fecha histórica específica (ej. Control de Cambios v1), usar `accion = 'CONTROL_CAMBIOS'` y hora `12:00:00` (evita que `DocumentoHistorialService` sobrescriba la fecha con `fecha_aprobacion` y previene desfases por zona horaria UTC-5).
+- **UTF-8 en VPS:** Anteponer `SET NAMES utf8mb4;` en comandos SQL que escriban tildes/ñ, y usar decodificación tolerante (`utf-8` → `latin1`/`cp1252`) en scripts Python que consuman salidas de MySQL en el VPS.
+
+## 8. Secuencia de IDs de Documentos (`proximo-id`) — Cero Hardcoding
+- **Prohibido quemar IDs** (como `3468` o `3516`) como valores por defecto o fallback en frontend o backend. Mientras la API responde, el frontend debe mostrar `"Calculando..."`.
+- **Fuente única de verdad:** El próximo ID debe obtenerse exclusivamente desde el backend (`/api/v1/documentos/proximo-id`) consultando `MAX(GREATEST(COALESCE(id,0), COALESCE(kawak_id,0))) + 1` sobre la tabla completa `documentos` (ya que `/documentos` y `/documentos/obsoletos` excluyen externos, históricos y filtran por permisos).
+- **Cero errores silenciosos y sincronización `AUTO_INCREMENT`:** En el backend no se deben silenciar excepciones SQL con `catch (Exception ignored) {}` en cálculos de ID; todo ajuste manual de ID (`cambiar-id` o SQL) debe mantener sincronizado `AUTO_INCREMENT` en MySQL.
+- **Aridad en `Promise.all`:** Al agregar o quitar llamadas dentro de `Promise.all`, verificar que las variables desestructuradas coincidan 1:1 con el array de promesas.
+
+## 9. Normalización de Texto, Mojibake y Categorías Documentales
+- Toda función de normalización (`normalizeText`) y carga de listas maestras (`cargos`, `usuarios`, `sedes`, `grupos`, `documentos`) debe aplicar `cleanMojibake()` **antes** de eliminar diacríticos (NFD) o construir claves de agrupación.
+- El prefijo institucional de políticas es **`-PO-`** (además de `-POL-`). Toda variante (`POLITICA`, `POLÍTICA`, mojibake) debe consolidarse bajo la categoría canónica única `POLÍTICA`.
+- En Control de Cambios (`trazabilidadDocHelper.js`), la Versión 1 se omite solo si su comentario es vacío o genérico; si posee un comentario real explícito (como documentación inicial oficial), debe mostrarse.
+
+## 10. Flujo de Diagnóstico Previo
+- Cuando el usuario solicite revisar el porqué, estudiar un problema o entregar un plan estructurado sin avanzar hasta confirmación, realizar únicamente inspección de solo lectura (sin editar código, compilar ni hacer push) hasta recibir aprobación explícita.
