@@ -27,7 +27,7 @@ public class ConfiguracionAplicacion {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return username -> usuarioRepository.findByUsername(username)
+        return username -> usuarioRepository.findByUsernameWithPermisos(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado en la base de datos"));
     }
 

@@ -3,18 +3,23 @@ package com.clinova.controller;
 import com.clinova.dto.PerfilUsuarioDTO;
 import com.clinova.dto.UsuarioRequestDTO;
 import com.clinova.entity.*;
+import com.clinova.repository.PermisoRepository;
 import com.clinova.repository.UsuarioRepository;
 import com.clinova.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -24,6 +29,7 @@ public class UsuarioController {
 
     private final UsuarioService usuarioService;
     private final UsuarioRepository usuarioRepository;
+    private final PermisoRepository permisoRepository;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -164,5 +170,96 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "No se pudo eliminar el usuario: " + e.getMessage()));
         }
+    }
+
+    private boolean puedeAdministrarPermisos(Usuario principal) {
+        if (principal == null) return false;
+        if (principal.getRol() == Role.ADMIN) return true;
+        return principal.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()) || "CARGOS_MODIFICAR".equals(a.getAuthority()) || "USUARIOS_MODIFICAR".equals(a.getAuthority()));
+    }
+
+    @GetMapping("/me/permisos")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Map<String, Object>> obtenerMisPermisos(@AuthenticationPrincipal Usuario principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Usuario u = usuarioRepository.findByIdWithPermisos(principal.getId()).orElse(principal);
+        List<String> efectivos = u.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+        List<String> delCargo = (u.getCargo() != null && u.getCargo().getPermisos() != null)
+                ? u.getCargo().getPermisos().stream().map(Permiso::getNombre).collect(Collectors.toList())
+                : List.of();
+        List<String> directos = (u.getPermisosDirectos() != null)
+                ? u.getPermisosDirectos().stream().map(Permiso::getNombre).collect(Collectors.toList())
+                : List.of();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("usuarioId", u.getId());
+        body.put("username", u.getUsername());
+        body.put("rol", u.getRol() != null ? u.getRol().name() : null);
+        body.put("cargo", u.getCargo() != null ? u.getCargo().getNombre() : null);
+        body.put("permisos", efectivos);
+        body.put("permisosCargo", delCargo);
+        body.put("permisosDirectos", directos);
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/{id}/permisos")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> obtenerPermisosUsuario(@PathVariable Long id, @AuthenticationPrincipal Usuario principal) {
+        if (!puedeAdministrarPermisos(principal) && (principal == null || !principal.getId().equals(id))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "No tiene permisos para consultar los permisos de este usuario"));
+        }
+        Usuario u = usuarioRepository.findByIdWithPermisos(id).orElse(null);
+        if (u == null) return ResponseEntity.notFound().build();
+
+        List<Long> directosIds = (u.getPermisosDirectos() != null)
+                ? u.getPermisosDirectos().stream().map(Permiso::getId).collect(Collectors.toList())
+                : List.of();
+        List<Long> cargoIds = (u.getCargo() != null && u.getCargo().getPermisos() != null)
+                ? u.getCargo().getPermisos().stream().map(Permiso::getId).collect(Collectors.toList())
+                : List.of();
+        List<String> efectivos = u.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("usuarioId", u.getId());
+        body.put("username", u.getUsername());
+        body.put("nombreCompleto", u.getNombreCompleto());
+        body.put("cargoNombre", u.getCargo() != null ? u.getCargo().getNombre() : "SIN CARGO");
+        body.put("permisosDirectosIds", directosIds);
+        body.put("permisosCargoIds", cargoIds);
+        body.put("permisosEfectivos", efectivos);
+        return ResponseEntity.ok(body);
+    }
+
+    @PutMapping("/{id}/permisos")
+    @Transactional
+    public ResponseEntity<?> actualizarPermisosUsuario(
+            @PathVariable Long id,
+            @RequestBody List<Long> permisoIds,
+            @AuthenticationPrincipal Usuario principal) {
+        if (!puedeAdministrarPermisos(principal)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "No tiene permisos para modificar permisos de usuarios"));
+        }
+        Usuario u = usuarioRepository.findByIdWithPermisos(id).orElse(null);
+        if (u == null) return ResponseEntity.notFound().build();
+
+        List<Permiso> nuevos = (permisoIds != null && !permisoIds.isEmpty())
+                ? permisoRepository.findAllById(permisoIds)
+                : List.of();
+        u.setPermisosDirectos(new HashSet<>(nuevos));
+        usuarioRepository.save(u);
+        log.info("Permisos directos actualizados para usuario id={} ({}) por {}: {} permisos asignados",
+                u.getId(), u.getUsername(), principal != null ? principal.getUsername() : "SYSTEM", nuevos.size());
+        return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "message", "Permisos directos del usuario actualizados correctamente",
+                "totalDirectos", nuevos.size()
+        ));
     }
 }

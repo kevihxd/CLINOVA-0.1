@@ -289,7 +289,7 @@ public class DocumentoController {
     @GetMapping("/debug-files")
     public ResponseEntity<?> debugFiles(@RequestParam(value = "q", required = false) String query) {
         Map<String, Object> debugInfo = new LinkedHashMap<>();
-        debugInfo.put("jarVersion", "v10-proximoId-sync-20261125");
+        debugInfo.put("jarVersion", "v11-apoyoTerapeutico-permisos-20261126");
         debugInfo.put("fileIndexSize", fileLocator.getIndexSize());
         debugInfo.put("rootUploads", fileLocator.getRootUploads());
         if (query != null && !query.isBlank()) {

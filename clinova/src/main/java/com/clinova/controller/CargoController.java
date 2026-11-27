@@ -173,6 +173,7 @@ public class CargoController {
             executeNativeQuietly("DELETE FROM perfiles_cargo WHERE cargo_id = :id", id);
 
             // 4. Eliminar permisos asociados en tabla intermedia
+            executeNativeQuietly("DELETE FROM cargo_permisos WHERE cargo_id = :id", id);
             executeNativeQuietly("DELETE FROM cargo_permiso WHERE cargo_id = :id", id);
 
             // 5. Eliminar asociaciones en grupos de distribución

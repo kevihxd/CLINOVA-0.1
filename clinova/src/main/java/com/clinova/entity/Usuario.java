@@ -48,6 +48,18 @@ public class Usuario implements UserDetails {
     @JoinColumn(name = "cargo_id", nullable = true)
     private Cargo cargo;
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "usuario_permisos",
+            joinColumns = @JoinColumn(name = "usuario_id"),
+            inverseJoinColumns = @JoinColumn(name = "permiso_id")
+    )
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @lombok.EqualsAndHashCode.Exclude
+    @lombok.ToString.Exclude
+    @Builder.Default
+    private java.util.Set<Permiso> permisosDirectos = new java.util.HashSet<>();
+
     @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private HojaVida hojaVida;
@@ -55,20 +67,37 @@ public class Usuario implements UserDetails {
     @Override
     @com.fasterxml.jackson.annotation.JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        List<GrantedAuthority> authorities = new ArrayList<>();
+        java.util.Set<String> nombres = new java.util.LinkedHashSet<>();
 
         if (rol != null) {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + rol.name()));
+            nombres.add("ROLE_" + rol.name());
         }
 
         try {
-            if (cargo != null && org.hibernate.Hibernate.isInitialized(cargo) && cargo.getPermisos() != null && org.hibernate.Hibernate.isInitialized(cargo.getPermisos())) {
+            if (cargo != null && org.hibernate.Hibernate.isInitialized(cargo)
+                    && cargo.getPermisos() != null && org.hibernate.Hibernate.isInitialized(cargo.getPermisos())) {
                 for (Permiso permiso : cargo.getPermisos()) {
-                    authorities.add(new SimpleGrantedAuthority(permiso.getNombre()));
+                    if (permiso != null && permiso.getNombre() != null) {
+                        nombres.add(permiso.getNombre());
+                    }
                 }
             }
         } catch (Exception ignored) {}
 
+        try {
+            if (permisosDirectos != null && org.hibernate.Hibernate.isInitialized(permisosDirectos)) {
+                for (Permiso permiso : permisosDirectos) {
+                    if (permiso != null && permiso.getNombre() != null) {
+                        nombres.add(permiso.getNombre());
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        for (String nombre : nombres) {
+            authorities.add(new SimpleGrantedAuthority(nombre));
+        }
         return authorities;
     }
 

@@ -78,7 +78,7 @@ public class AutenticacionService {
                 )
         );
 
-        Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
+        Usuario usuario = usuarioRepository.findByUsernameWithPermisos(request.getUsername())
                 .orElseThrow();
 
         List<String> permisos = usuario.getAuthorities().stream()
